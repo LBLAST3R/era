@@ -2,6 +2,7 @@ const canvas = document.getElementById("organism");
 const ctx = canvas.getContext("2d");
 
 const audioToggle = document.getElementById("audioToggle");
+const fullscreenButton = document.getElementById("fullscreenButton");
 const seedButton = document.getElementById("seedButton");
 const saveButton = document.getElementById("saveButton");
 const loadButton = document.getElementById("loadButton");
@@ -30,6 +31,7 @@ let seed = String(Math.floor(Math.random() * 99999999));
 let audio = null;
 let recorder = null;
 let recordedChunks = [];
+let immersive = false;
 
 const modes = {
   calme: {
@@ -612,6 +614,42 @@ function updateReadout() {
   cellCount.textContent = String(cells.length);
 }
 
+async function enterImmersive() {
+  immersive = true;
+  document.body.classList.add("immersive");
+  fullscreenButton.textContent = "Quitter plein ecran";
+
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (error) {
+      return;
+    }
+  }
+}
+
+async function exitImmersive() {
+  immersive = false;
+  document.body.classList.remove("immersive");
+  fullscreenButton.textContent = "Plein ecran";
+
+  if (document.fullscreenElement && document.exitFullscreen) {
+    try {
+      await document.exitFullscreen();
+    } catch (error) {
+      return;
+    }
+  }
+}
+
+function syncFullscreenState() {
+  if (!document.fullscreenElement && immersive) {
+    immersive = false;
+    document.body.classList.remove("immersive");
+    fullscreenButton.textContent = "Plein ecran";
+  }
+}
+
 function addCellFromPointer(event, large = false) {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
@@ -765,6 +803,21 @@ audioToggle.addEventListener("click", async () => {
     await audio.ctx.suspend();
     audioState.textContent = "son suspendu";
     audioToggle.textContent = "Reprendre le son";
+  }
+});
+
+fullscreenButton.addEventListener("click", async () => {
+  if (immersive) await exitImmersive();
+  else await enterImmersive();
+});
+
+document.addEventListener("fullscreenchange", syncFullscreenState);
+
+document.addEventListener("keydown", async (event) => {
+  if (event.target.closest("input, button, textarea, select")) return;
+  if (event.key.toLowerCase() === "h") {
+    if (immersive) await exitImmersive();
+    else await enterImmersive();
   }
 });
 
