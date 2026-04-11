@@ -33,6 +33,8 @@ let entities = [];
 let spores = [];
 let mode = "calme";
 let mouse = { x: 0, y: 0, px: 0, py: 0, down: false, holdStart: 0, active: false };
+let pendingPointer = null;
+let lastManualCreation = { time: -Infinity, x: -9999, y: -9999 };
 let lastTime = performance.now();
 let rng = mulberry32(Date.now());
 let seed = String(Math.floor(Math.random() * 99999999));
@@ -1643,6 +1645,11 @@ function syncFullscreenState() {
 }
 
 function addCellFromPointer(event, large = false) {
+  const now = performance.now();
+  const duplicateDistance = Math.hypot(event.clientX - lastManualCreation.x, event.clientY - lastManualCreation.y);
+  if (now - lastManualCreation.time < 260 && duplicateDistance < 12) return;
+  lastManualCreation = { time: now, x: event.clientX, y: event.clientY };
+
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -1825,12 +1832,20 @@ canvas.addEventListener("pointermove", (event) => {
 
 canvas.addEventListener("pointerdown", async (event) => {
   event.preventDefault();
-  await ensureAudio();
   mouse.down = true;
   mouse.holdStart = performance.now();
   mouse.x = event.clientX;
   mouse.y = event.clientY;
   mouse.active = true;
+  pendingPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, created: false };
+  if (event.button === 0) {
+    addCellFromPointer(event, false);
+    pendingPointer.created = true;
+  } else if (event.button === 2) {
+    addCellFromPointer(event, true);
+    pendingPointer.created = true;
+  }
+  await ensureAudio();
   canvas.setPointerCapture(event.pointerId);
 });
 
@@ -1838,16 +1853,41 @@ canvas.addEventListener("pointerup", (event) => {
   event.preventDefault();
   const held = performance.now() - mouse.holdStart;
   mouse.down = false;
-  addCellFromPointer(event, held > 420 || event.button === 2);
+  const alreadyCreated = pendingPointer && pendingPointer.id === event.pointerId && pendingPointer.created;
+  if (event.button === 2 || held > 420) {
+    addCellFromPointer(event, true);
+  } else if (!alreadyCreated) {
+    addCellFromPointer(event, false);
+  }
+  pendingPointer = null;
 });
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
 
+canvas.addEventListener("mousedown", (event) => {
+  event.preventDefault();
+  mouse.down = true;
+  mouse.holdStart = performance.now();
+  mouse.x = event.clientX;
+  mouse.y = event.clientY;
+  mouse.active = true;
+  if (event.button === 0) addCellFromPointer(event, false);
+  if (event.button === 2) addCellFromPointer(event, true);
+});
+
+canvas.addEventListener("mouseup", (event) => {
+  event.preventDefault();
+  const held = performance.now() - mouse.holdStart;
+  mouse.down = false;
+  if (held > 420 || event.button === 2) addCellFromPointer(event, true);
+});
+
 canvas.addEventListener("pointerleave", () => {
   mouse.active = false;
   mouse.down = false;
+  pendingPointer = null;
 });
 
 audioToggle.addEventListener("click", async () => {
