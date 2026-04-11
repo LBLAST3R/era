@@ -44,6 +44,7 @@ let nextGenesisAt = 900;
 let nextCellId = 1;
 let stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
 let listenerOrbit = 0;
+let activeGrains = 0;
 let temporal = {
   local: 0,
   medium: 0,
@@ -57,6 +58,7 @@ let temporal = {
   quality: 1
 };
 const basisCache = new Map();
+let lastFrameError = "";
 
 const NOTE_NAMES = ["C", "D", "E", "G", "A", "B", "D+", "E+"];
 const VOICE_NAMES = ["vowel", "glass", "metal", "grain", "organ", "string", "fold"];
@@ -343,6 +345,13 @@ class Cellule {
     this.vx += Math.cos(this.phase * 1.7 + orbit) * wander + rand(-wander, wander);
     this.vy += Math.sin(this.phase * 1.3 - orbit) * wander + rand(-wander, wander);
 
+    const centerDx = this.x - width * 0.5;
+    const centerDy = this.y - height * 0.5;
+    const centerDist = Math.hypot(centerDx, centerDy) || 1;
+    const orbitForce = (0.003 + temporal.local * 0.006 + temporal.macroPressure * 0.002) * dt;
+    this.vx += (-centerDy / centerDist) * orbitForce;
+    this.vy += (centerDx / centerDist) * orbitForce;
+
     if (mouse.active) {
       const dx = this.x - mouse.x;
       const dy = this.y - mouse.y;
@@ -376,6 +385,10 @@ class Cellule {
     if (speed > maxSpeed) {
       this.vx = (this.vx / speed) * maxSpeed;
       this.vy = (this.vy / speed) * maxSpeed;
+    } else if (speed < 0.12) {
+      const wake = this.phase + this.id * 1.618;
+      this.vx += Math.cos(wake) * 0.045;
+      this.vy += Math.sin(wake) * 0.045;
     }
 
     this.x += this.vx * dt * 0.06;
@@ -648,6 +661,20 @@ function init(newSeed = seed, selectedMode = mode) {
   storyTime = 0;
   nextGenesisAt = 900;
   nextCellId = 1;
+  activeGrains = 0;
+  lastFrameError = "";
+  temporal = {
+    local: 0,
+    medium: 0,
+    long: 0,
+    pointDensity: 0.55,
+    soundDensity: 0.28,
+    clusterDensity: 0.45,
+    macroPressure: 0.35,
+    grainDebt: 0,
+    fps: 60,
+    quality: 1
+  };
   stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
   mode = selectedMode;
   const founderX = width > 760 ? width * 0.68 : width * 0.52;
@@ -658,30 +685,36 @@ function init(newSeed = seed, selectedMode = mode) {
 }
 
 function step(time) {
-  const frameDt = time - lastTime;
-  const dt = Math.min(40, frameDt);
-  lastTime = time;
-  updatePerformance(frameDt);
-  storyTime += dt;
-  updateTemporalControls(dt);
+  try {
+    const frameDt = time - lastTime;
+    const dt = Math.min(40, frameDt);
+    lastTime = time;
+    updatePerformance(frameDt);
+    storyTime += dt;
+    updateTemporalControls(dt);
 
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(8, 11, 10, 0.16)";
-  ctx.fillRect(0, 0, width, height);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(8, 11, 10, 0.16)";
+    ctx.fillRect(0, 0, width, height);
 
-  drawField();
-  drawEntities(dt);
-  updateRelations(dt);
-  cells.forEach((cell) => cell.update(dt));
-  evolve(dt);
-  drawConnections();
-  cells.forEach((cell) => cell.draw());
-  drawBursts(dt);
-  drawMouseField();
-  updateReadout();
-  updateAudioMix(dt);
-
-  requestAnimationFrame(step);
+    drawField();
+    drawEntities(dt);
+    updateRelations(dt);
+    cells.forEach((cell) => cell.update(dt));
+    evolve(dt);
+    drawConnections();
+    cells.forEach((cell) => cell.draw());
+    drawBursts(dt);
+    drawMouseField();
+    updateReadout();
+    updateAudioMix(dt);
+  } catch (error) {
+    lastFrameError = error instanceof Error ? error.message : String(error);
+    temporal.quality = Math.max(0.35, temporal.quality * 0.7);
+    console.warn("Frame recovered:", lastFrameError);
+  } finally {
+    requestAnimationFrame(step);
+  }
 }
 
 function updatePerformance(frameDt) {
@@ -1176,6 +1209,10 @@ function updateAudioMix(dt = 16) {
 
 function playTemporalGrains(dt, now) {
   if (!audio || cells.length === 0) return;
+  if (temporal.fps < 32 || activeGrains > 10) {
+    temporal.grainDebt = Math.min(temporal.grainDebt, 0.9);
+    return;
+  }
   const rate = (mode === "chaos" ? 10 : mode === "stable" ? 7 : 4) * temporal.quality;
   temporal.grainDebt += (dt / 1000) * temporal.soundDensity * rate;
   const grains = Math.min(2, Math.floor(temporal.grainDebt));
@@ -1217,6 +1254,10 @@ function playTemporalGrains(dt, now) {
     gain.connect(audio.dry);
     osc.start(start);
     osc.stop(start + duration + 0.03);
+    activeGrains += 1;
+    osc.onended = () => {
+      activeGrains = Math.max(0, activeGrains - 1);
+    };
   }
 }
 
@@ -1286,7 +1327,7 @@ function updateReadout() {
   manualCount.textContent = String(stats.manualBorn);
   generationCount.textContent = String(stats.maxGeneration);
   const lead = cells.length ? cells.reduce((best, cell) => (cell.energy + cell.size * 0.01 > best.energy + best.size * 0.01 ? cell : best), cells[0]) : null;
-  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName} / q${temporal.quality.toFixed(1)}` : "silence";
+  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName} / q${temporal.quality.toFixed(1)}` : lastFrameError || "silence";
   if (cells.length === 1) storyState.textContent = "germe";
   else if (cells.length < 12) storyState.textContent = "naissance";
   else if (cells.length < modes[mode].target * 0.7) storyState.textContent = "croissance";
