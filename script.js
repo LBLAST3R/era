@@ -40,6 +40,7 @@ let recorder = null;
 let recordedChunks = [];
 let immersive = false;
 let storyTime = 0;
+let nextGenesisAt = 900;
 let nextCellId = 1;
 let stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
 let listenerOrbit = 0;
@@ -593,6 +594,7 @@ function init(newSeed = seed, selectedMode = mode) {
   bursts = [];
   entities = [];
   storyTime = 0;
+  nextGenesisAt = 900;
   nextCellId = 1;
   stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
   mode = selectedMode;
@@ -675,6 +677,19 @@ function evolve(dt) {
   const capacity = Math.min(MAX_CELLS, settings.capacity);
   const genesisBoost = cells.length < Math.min(settings.target, 22) ? 1.8 : 1;
 
+  if (storyTime >= nextGenesisAt && cells.length > 0 && cells.length < Math.min(settings.target, capacity)) {
+    const parent = cells.reduce((best, cell) => {
+      const score = cell.energy + cell.size * 0.012 - cell.generation * 0.006;
+      const bestScore = best.energy + best.size * 0.012 - best.generation * 0.006;
+      return score > bestScore ? cell : best;
+    }, cells[0]);
+    parent.energy = Math.max(parent.energy, settings.division + 0.16);
+    parent.birthAge = Math.max(parent.birthAge, 1300 + parent.generation * 70);
+    divideCell(parent);
+    const acceleration = cells.length < 8 ? 0.42 : cells.length < 24 ? 0.7 : 1;
+    nextGenesisAt = storyTime + settings.birthTempo * acceleration * rand(0.55, 0.95);
+  }
+
   for (let i = cells.length - 1; i >= 0; i -= 1) {
     const cell = cells[i];
     const pressure = cells.length < settings.target ? 1.7 : 0.52;
@@ -693,6 +708,7 @@ function evolve(dt) {
   if (cells.length === 1 && storyTime > settings.birthTempo) {
     cells[0].energy = Math.max(cells[0].energy, settings.division + 0.1);
     divideCell(cells[0]);
+    nextGenesisAt = storyTime + settings.birthTempo * 0.5;
   }
 
   if (cells.length < MIN_CELLS) {
@@ -1206,6 +1222,7 @@ function saveOrganism() {
     seed,
     mode,
     storyTime,
+    nextGenesisAt,
     stats,
     cells: cells.map((cell) => ({
       id: cell.id,
@@ -1245,6 +1262,7 @@ function loadOrganism() {
   cells.forEach((cell) => cell.stopAudio());
   stats = data.stats || { totalBorn: data.cells.length, manualBorn: 0, maxGeneration: 0 };
   storyTime = data.storyTime || 0;
+  nextGenesisAt = data.nextGenesisAt || storyTime + 900;
   cells = data.cells.map((item) => {
     const cell = new Cellule(item.x * width, item.y * height, item.size, item.energy, item.hue, {
       generation: item.generation || 0,
@@ -1332,6 +1350,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 canvas.addEventListener("pointerdown", async (event) => {
+  event.preventDefault();
   await ensureAudio();
   mouse.down = true;
   mouse.holdStart = performance.now();
@@ -1342,9 +1361,14 @@ canvas.addEventListener("pointerdown", async (event) => {
 });
 
 canvas.addEventListener("pointerup", (event) => {
+  event.preventDefault();
   const held = performance.now() - mouse.holdStart;
   mouse.down = false;
-  addCellFromPointer(event, held > 420);
+  addCellFromPointer(event, held > 420 || event.button === 2);
+});
+
+canvas.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
 });
 
 canvas.addEventListener("pointerleave", () => {
