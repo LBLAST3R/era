@@ -1369,7 +1369,7 @@ function updateAudioMix(dt = 16) {
   const forwardZ = -Math.cos(listenerOrbit);
   audio.master.gain.setTargetAtTime(settings.master * (0.82 + temporal.macroPressure * 0.28), now, 0.18);
   audio.delay.delayTime.setTargetAtTime(settings.delay * (0.74 + temporal.clusterDensity * 0.54), now, 0.22);
-  audio.feedback.gain.setTargetAtTime(clamp(settings.feedback + temporal.soundDensity * 0.12, 0.08, 0.72), now, 0.18);
+  audio.feedback.gain.setTargetAtTime(clamp(settings.feedback + temporal.soundDensity * 0.06, 0.08, 0.62), now, 0.18);
   audio.wet.gain.setTargetAtTime(settings.reverb * (0.72 + temporal.macroPressure * 0.5), now, 0.24);
   if (audio.listener.positionX) {
     setAudioParam(audio.listener.forwardX, forwardX, now, 0.3);
@@ -1387,11 +1387,17 @@ function createAdditiveBank(ctxAudio) {
   const bankGain = ctxAudio.createGain();
   const filter = ctxAudio.createBiquadFilter();
   const panner = ctxAudio.createPanner();
+  const compressor = ctxAudio.createDynamicsCompressor();
 
   bankGain.gain.value = 0;
   filter.type = "lowpass";
   filter.frequency.value = 2400;
   filter.Q.value = 0.8;
+  compressor.threshold.value = -26;
+  compressor.knee.value = 22;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.018;
+  compressor.release.value = 0.22;
   panner.panningModel = "HRTF";
   panner.distanceModel = "inverse";
   panner.refDistance = 2;
@@ -1411,17 +1417,18 @@ function createAdditiveBank(ctxAudio) {
   }
 
   filter.connect(panner);
-  panner.connect(bankGain);
+  panner.connect(compressor);
+  compressor.connect(bankGain);
   bankGain.connect(audio ? audio.wet : ctxAudio.destination);
   bankGain.connect(audio ? audio.dry : ctxAudio.destination);
-  return { partials, bankGain, filter, panner };
+  return { partials, bankGain, filter, panner, compressor };
 }
 
 function updateAdditiveTimbre(now) {
   if (!audio || !additive || spores.length === 0) return;
   const sampleCount = Math.min(spores.length, mode === "chaos" ? 900 : mode === "stable" ? 560 : 320);
   const stride = Math.max(1, Math.floor(spores.length / sampleCount));
-  const bins = additive.partials.map(() => ({ amp: 0, freq: 0, x: 0, y: 0, z: 0 }));
+  const bins = additive.partials.map(() => ({ amp: 0, freq: 0, x: 0, y: 0, z: 0, count: 0 }));
   let total = 0;
   let centroidX = 0;
   let centroidY = 0;
@@ -1434,13 +1441,14 @@ function updateAdditiveTimbre(now) {
     const normY = clamp(spore.y / Math.max(1, height), 0, 1);
     const depth = clamp(spore.z, -1.4, 1.4);
     const binIndex = Math.min(bins.length - 1, Math.floor((normX * 0.55 + normY * 0.25 + (depth + 1.4) * 0.071) * bins.length));
-    const amp = clamp(spore.life * spore.size * 0.08, 0, 0.35);
+    const amp = clamp(Math.sqrt(Math.max(0, spore.life)) * spore.size * 0.018, 0, 0.09);
     const freq = 42 + normX * 880 + (1 - normY) * 360 + depth * 110 + (spore.hue % 120);
     bins[binIndex].amp += amp;
     bins[binIndex].freq += freq * amp;
     bins[binIndex].x += (normX * 2 - 1) * amp;
     bins[binIndex].y += (1 - normY * 2) * amp;
     bins[binIndex].z += depth * amp;
+    bins[binIndex].count += 1;
     total += amp;
     centroidX += (normX * 2 - 1) * amp;
     centroidY += (1 - normY * 2) * amp;
@@ -1448,20 +1456,23 @@ function updateAdditiveTimbre(now) {
     brightness += freq * amp;
   }
 
-  const masterAmp = clamp(total / Math.max(1, sampleCount) * (mode === "chaos" ? 1.5 : 1.1), 0, 0.16);
-  additive.bankGain.gain.setTargetAtTime(masterAmp, now, 0.18);
-  additive.filter.frequency.setTargetAtTime(clamp((brightness / Math.max(1, total)) * (0.9 + temporal.soundDensity), 320, 8000), now, 0.22);
-  additive.filter.Q.setTargetAtTime(0.7 + temporal.clusterDensity * 5, now, 0.24);
+  const spectralMass = Math.log1p(spores.length) / Math.log1p(mode === "chaos" ? 4200 : mode === "stable" ? 2600 : 1400);
+  const masterAmp = clamp(0.012 + spectralMass * 0.055 * temporal.soundDensity, 0, mode === "chaos" ? 0.075 : 0.06);
+  additive.bankGain.gain.setTargetAtTime(masterAmp, now, 0.28);
+  additive.filter.frequency.setTargetAtTime(clamp((brightness / Math.max(1, total)) * (0.75 + temporal.soundDensity * 0.42), 260, 6200), now, 0.3);
+  additive.filter.Q.setTargetAtTime(0.55 + temporal.clusterDensity * 2.8, now, 0.28);
   setAudioParam(additive.panner.positionX, clamp(centroidX / Math.max(0.001, total) * 7, -8, 8), now, 0.18);
   setAudioParam(additive.panner.positionY, clamp(centroidY / Math.max(0.001, total) * 4, -5, 5), now, 0.18);
   setAudioParam(additive.panner.positionZ, clamp(centroidZ / Math.max(0.001, total) * 7, -9, 9), now, 0.18);
 
   additive.partials.forEach((partial, index) => {
     const bin = bins[index];
-    const amp = clamp(bin.amp / Math.max(1, total), 0, 0.12) * temporal.soundDensity;
+    const binWeight = bin.amp / Math.max(0.001, total);
+    const distribution = bin.count > 0 ? Math.sqrt(bin.count / Math.max(1, sampleCount)) : 0;
+    const amp = clamp((binWeight * 0.42 + distribution * 0.018) * temporal.soundDensity, 0, 0.035);
     const freq = bin.amp > 0 ? bin.freq / bin.amp : 45 + index * 31;
-    partial.osc.frequency.setTargetAtTime(clamp(freq, 28, 9000), now, 0.12);
-    partial.gain.gain.setTargetAtTime(amp, now, 0.14);
+    partial.osc.frequency.setTargetAtTime(clamp(freq, 28, 7600), now, 0.18);
+    partial.gain.gain.setTargetAtTime(amp, now, 0.24);
   });
 }
 
@@ -1471,7 +1482,7 @@ function playTemporalGrains(dt, now) {
     temporal.grainDebt = Math.min(temporal.grainDebt, 0.9);
     return;
   }
-  const rate = (mode === "chaos" ? 10 : mode === "stable" ? 7 : 4) * temporal.quality;
+  const rate = (mode === "chaos" ? 5 : mode === "stable" ? 4 : 2.5) * temporal.quality;
   temporal.grainDebt += (dt / 1000) * temporal.soundDensity * rate;
   const grains = Math.min(2, Math.floor(temporal.grainDebt));
   temporal.grainDebt -= grains;
@@ -1500,7 +1511,7 @@ function playTemporalGrains(dt, now) {
     setAudioParam(panner.positionY, mapping.spatialY + rand(-1.6, 1.6), now, 0.01);
     setAudioParam(panner.positionZ, mapping.spatialZ + rand(-3.2, 3.2), now, 0.01);
 
-    const peak = clamp(0.006 + mapping.volume * 0.34 * temporal.soundDensity, 0.003, 0.034);
+    const peak = clamp(0.003 + mapping.volume * 0.16 * temporal.soundDensity, 0.0015, 0.016);
     gain.gain.setValueAtTime(0.0001, start);
     gain.gain.exponentialRampToValueAtTime(peak, start + duration * 0.22);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
