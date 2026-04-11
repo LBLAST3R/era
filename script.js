@@ -30,6 +30,7 @@ let dpr = 1;
 let cells = [];
 let bursts = [];
 let entities = [];
+let spores = [];
 let mode = "calme";
 let mouse = { x: 0, y: 0, px: 0, py: 0, down: false, holdStart: 0, active: false };
 let lastTime = performance.now();
@@ -202,6 +203,11 @@ function modeHueOffset() {
 
 function finite(value, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
+}
+
+function hue(value, fallback = 160) {
+  const safe = finite(value, fallback) % 360;
+  return safe < 0 ? safe + 360 : safe;
 }
 
 function setAudioParam(param, value, now, smoothing) {
@@ -452,78 +458,84 @@ class Cellule {
     const speed = Math.hypot(this.vx, this.vy);
     const mapping = this.mapping;
     const light = 42 + mapping.brightness * 34 + speed * 3;
-    const color = `hsl(${mapping.hue} 88% ${light}%)`;
+    const baseHue = hue(mapping.hue);
+    const color = `hsl(${baseHue} 88% ${finite(light, 58)}%)`;
     const projection = 1 + mapping.dimension * 0.42;
-    const halo = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * mapping.aura * projection);
-    halo.addColorStop(0, `hsla(${mapping.hue} 95% 65% / ${0.16 + mapping.volume * 3.4})`);
-    halo.addColorStop(0.42, `hsla(${(mapping.hue + mapping.chordHue) % 360} 88% 58% / ${0.08 + mapping.modulation * 0.1})`);
-    halo.addColorStop(1, `hsla(${mapping.hue} 95% 55% / 0)`);
+    const x = finite(this.x, width * 0.5);
+    const y = finite(this.y, height * 0.5);
+    const safeSize = clamp(finite(this.size, 10), 1, 80);
+    const haloRadius = clamp(finite(safeSize * mapping.aura * projection, safeSize * 6), 1, Math.max(width, height) * 1.1);
+    const membraneRadius = clamp(finite(safeSize * 1.8, 18), 1, 180);
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, haloRadius);
+    halo.addColorStop(0, `hsla(${baseHue} 95% 65% / ${clamp(0.16 + finite(mapping.volume) * 3.4, 0, 0.75)})`);
+    halo.addColorStop(0.42, `hsla(${hue(baseHue + finite(mapping.chordHue, 88))} 88% 58% / ${clamp(0.08 + finite(mapping.modulation) * 0.1, 0, 0.38)})`);
+    halo.addColorStop(1, `hsla(${baseHue} 95% 55% / 0)`);
 
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 5.8, 0, TAU);
+    ctx.arc(x, y, clamp(safeSize * 5.8, 1, Math.max(width, height)), 0, TAU);
     ctx.fill();
 
-    const membrane = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 1.8);
-    membrane.addColorStop(0, `hsla(${(mapping.hue + 24) % 360} 96% 74% / ${mapping.opacity})`);
-    membrane.addColorStop(0.58, `hsla(${mapping.hue} 88% ${light}% / ${mapping.opacity * 0.82})`);
-    membrane.addColorStop(1, `hsla(${(mapping.hue + 130) % 360} 86% 42% / ${mapping.opacity * 0.88})`);
+    const membrane = ctx.createRadialGradient(x, y, 0, x, y, membraneRadius);
+    membrane.addColorStop(0, `hsla(${hue(baseHue + 24)} 96% 74% / ${clamp(finite(mapping.opacity, 0.7), 0, 1)})`);
+    membrane.addColorStop(0.58, `hsla(${baseHue} 88% ${finite(light, 58)}% / ${clamp(finite(mapping.opacity, 0.7) * 0.82, 0, 1)})`);
+    membrane.addColorStop(1, `hsla(${hue(baseHue + 130)} 86% 42% / ${clamp(finite(mapping.opacity, 0.7) * 0.88, 0, 1)})`);
     ctx.fillStyle = membrane;
     ctx.shadowColor = color;
     ctx.shadowBlur = 18 + this.energy * 24;
     ctx.beginPath();
     const points = sampleNurbsMembrane(this, Math.floor((20 + temporal.pointDensity * 26) * temporal.quality));
     points.forEach((point, i) => {
-      const x = this.x + point.x;
-      const y = this.y + point.y;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const px = x + point.x;
+      const py = y + point.y;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     });
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = `hsla(${(mapping.hue + 80) % 360} 94% 78% / ${0.2 + mapping.brightness * 0.26})`;
-    ctx.lineWidth = clamp(this.size * (0.055 + mapping.modulation * 0.045), 0.8, 3.2);
+    ctx.strokeStyle = `hsla(${hue(baseHue + 80)} 94% 78% / ${clamp(0.2 + finite(mapping.brightness, 0.5) * 0.26, 0, 0.6)})`;
+    ctx.lineWidth = clamp(safeSize * (0.055 + mapping.modulation * 0.045), 0.8, 3.2);
     ctx.stroke();
     ctx.shadowBlur = 0;
 
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = `hsla(${(mapping.hue + 44) % 360} 96% 68% / ${0.07 + mapping.dimension * 0.12})`;
+    ctx.strokeStyle = `hsla(${hue(baseHue + 44)} 96% 68% / ${clamp(0.07 + finite(mapping.dimension, 0.5) * 0.12, 0, 0.35)})`;
     ctx.lineWidth = 0.75;
     const lattice = Math.min(points.length, Math.floor(5 + temporal.clusterDensity * 12));
     for (let i = 0; i < lattice; i += 1) {
       const a = points[(i * 3) % points.length];
       const b = points[(i * 7 + 5) % points.length];
       ctx.beginPath();
-      ctx.moveTo(this.x + a.x, this.y + a.y);
-      ctx.lineTo(this.x + b.x, this.y + b.y);
+      ctx.moveTo(x + a.x, y + a.y);
+      ctx.lineTo(x + b.x, y + b.y);
       ctx.stroke();
     }
-    ctx.strokeStyle = `hsla(${(mapping.hue + 180) % 360} 90% 70% / ${0.12 + mapping.dimension * 0.2})`;
+    ctx.strokeStyle = `hsla(${hue(baseHue + 180)} 90% 70% / ${clamp(0.12 + finite(mapping.dimension, 0.5) * 0.2, 0, 0.5)})`;
     ctx.lineWidth = 0.75;
     const nucleiCount = Math.min(this.gene.nuclei.length, Math.max(1, Math.floor((1 + temporal.pointDensity * this.gene.nuclei.length) * temporal.quality)));
     for (let i = 0; i < nucleiCount; i += 1) {
       const a = this.gene.nuclei[i] + this.phase * (0.42 + i * 0.05);
       const z = Math.sin(this.hyper + i) * 0.5 + 0.5;
-      const r = this.size * (0.18 + z * 0.34);
-      const nx = this.x + Math.cos(a) * r * projection;
-      const ny = this.y + Math.sin(a * 1.37) * r * 0.76;
+      const r = safeSize * (0.18 + z * 0.34);
+      const nx = x + Math.cos(a) * r * projection;
+      const ny = y + Math.sin(a * 1.37) * r * 0.76;
       ctx.beginPath();
-      ctx.arc(nx, ny, Math.max(1.1, this.size * (0.045 + z * 0.03)), 0, TAU);
+      ctx.arc(nx, ny, Math.max(1.1, safeSize * (0.045 + z * 0.03)), 0, TAU);
       ctx.stroke();
     }
     ctx.globalCompositeOperation = "source-over";
 
   ctx.fillStyle = `rgba(255, 255, 255, ${0.16 + this.isolated * 0.24})`;
     ctx.beginPath();
-    ctx.arc(this.x - this.size * 0.2, this.y - this.size * 0.18, Math.max(1.4, this.size * 0.14), 0, TAU);
+    ctx.arc(x - safeSize * 0.2, y - safeSize * 0.18, Math.max(1.4, safeSize * 0.14), 0, TAU);
     ctx.fill();
 
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = `hsla(${(mapping.hue + (mapping.horizontalMotion > 0 ? 55 : 260)) % 360} 96% 72% / ${0.08 + Math.abs(mapping.horizontalMotion) * 0.24})`;
-    ctx.lineWidth = clamp(this.size * 0.035, 0.6, 1.8);
+    ctx.strokeStyle = `hsla(${hue(baseHue + (mapping.horizontalMotion > 0 ? 55 : 260))} 96% 72% / ${clamp(0.08 + Math.abs(finite(mapping.horizontalMotion)) * 0.24, 0, 0.4)})`;
+    ctx.lineWidth = clamp(safeSize * 0.035, 0.6, 1.8);
     ctx.beginPath();
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - this.vx * 18, this.y - this.vy * 18);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - this.vx * 18, y - this.vy * 18);
     ctx.stroke();
     ctx.globalCompositeOperation = "source-over";
   }
@@ -669,6 +681,7 @@ function init(newSeed = seed, selectedMode = mode) {
   cells = [];
   bursts = [];
   entities = [];
+  spores = [];
   storyTime = 0;
   nextGenesisAt = 900;
   nextCellId = 1;
@@ -727,6 +740,8 @@ function step(time) {
     ctx.fillRect(0, 0, width, height);
 
     drawField();
+    updateSpores(dt);
+    drawSpores();
     drawEntities(dt);
     updateRelations(dt);
     cells.forEach((cell) => cell.update(dt));
@@ -877,6 +892,7 @@ function divideCell(cell) {
   child.vy = cell.vy + Math.sin(angle) * rand(0.6, 1.5);
   cells.push(child);
   addBurst(cell.x, cell.y, cell.hue, 0.75);
+  emitSpores(child, mode === "chaos" ? 90 : mode === "stable" ? 48 : 24, 0.8);
   glitch(cell, 0.5);
   return child;
 }
@@ -958,6 +974,82 @@ function drawConnections() {
   ctx.globalCompositeOperation = "source-over";
 }
 
+function emitSpores(cell, amount, force = 1) {
+  const settings = modes[mode];
+  const cap = mode === "chaos" ? 4200 : mode === "stable" ? 2600 : 1400;
+  const count = Math.min(amount, Math.max(0, cap - spores.length));
+  const mapping = cell.mapping || mapCellToSoundAndLight(cell, Math.hypot(cell.vx, cell.vy));
+  for (let i = 0; i < count; i += 1) {
+    const angle = rand(0, TAU);
+    const shell = Math.pow(rand(0, 1), mode === "chaos" ? 0.38 : 0.62);
+    const radius = rand(cell.size * 0.7, cell.size * (mode === "chaos" ? 18 : 10)) * shell;
+    const speed = rand(0.08, settings.maxSpeed * 0.72) * force;
+    const dimension = rand(-1, 1);
+    spores.push({
+      x: cell.x + Math.cos(angle) * radius,
+      y: cell.y + Math.sin(angle) * radius,
+      vx: Math.cos(angle + rand(-0.7, 0.7)) * speed + cell.vx * 0.2,
+      vy: Math.sin(angle + rand(-0.7, 0.7)) * speed + cell.vy * 0.2,
+      z: dimension,
+      w: rand(0.2, 1.8),
+      hue: (mapping.hue + rand(-90, 120) + 360) % 360,
+      size: rand(0.55, mode === "chaos" ? 2.6 : 1.8) * force,
+      life: rand(0.45, mode === "chaos" ? 1.8 : 1.35),
+      phase: rand(0, TAU),
+      orbit: rand(-1.4, 1.4)
+    });
+  }
+}
+
+function updateSpores(dt) {
+  if (cells.length > 0) {
+    const emitterRate = (mode === "chaos" ? 18 : mode === "stable" ? 9 : 4) * temporal.pointDensity * temporal.quality;
+    if (rand(0, 1) < emitterRate * dt * 0.001) {
+      const cell = cells[Math.floor(rand(0, cells.length))];
+      emitSpores(cell, mode === "chaos" ? 38 : mode === "stable" ? 18 : 8, 0.7);
+    }
+  }
+
+  const centerX = width * 0.5;
+  const centerY = height * 0.5;
+  for (let i = spores.length - 1; i >= 0; i -= 1) {
+    const spore = spores[i];
+    spore.phase += dt * (0.001 + temporal.local * 0.002);
+    spore.life -= dt * (mode === "chaos" ? 0.00024 : 0.00016);
+    spore.z += Math.sin(spore.phase + temporal.long * TAU) * dt * 0.00018;
+    const dx = spore.x - centerX;
+    const dy = spore.y - centerY;
+    const dist = Math.hypot(dx, dy) || 1;
+    const twist = (0.0008 + temporal.macroPressure * 0.0018) * spore.orbit * dt;
+    spore.vx += (-dy / dist) * twist + Math.sin(spore.phase) * 0.006 * dt;
+    spore.vy += (dx / dist) * twist + Math.cos(spore.phase * 1.3) * 0.006 * dt;
+    const projection = 1 / (1.8 - clamp(spore.z, -1.2, 1.2) * 0.35);
+    spore.x += spore.vx * dt * 0.04 * projection;
+    spore.y += spore.vy * dt * 0.04 * projection;
+
+    if (spore.life <= 0 || spore.x < -160 || spore.x > width + 160 || spore.y < -160 || spore.y > height + 160) {
+      spores.splice(i, 1);
+    }
+  }
+}
+
+function drawSpores() {
+  if (spores.length === 0) return;
+  const stride = temporal.quality < 0.55 ? 2 : 1;
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < spores.length; i += stride) {
+    const spore = spores[i];
+    const depth = clamp(spore.z, -1.4, 1.4);
+    const projection = 1 / (1.8 - depth * 0.35);
+    const alpha = clamp(spore.life, 0, 1) * (0.1 + temporal.pointDensity * 0.32);
+    ctx.fillStyle = `hsla(${hue(spore.hue)} 96% ${finite(58 + projection * 18, 66)}% / ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(spore.x, spore.y, spore.size * projection * (0.8 + temporal.macroPressure * 0.7), 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
 function spawnEntity(cell, intensity = 1) {
   const mapping = cell.mapping || mapCellToSoundAndLight(cell, Math.hypot(cell.vx, cell.vy));
   const radiusLimit = Math.max(160, Math.max(width, height) * 0.74);
@@ -990,7 +1082,8 @@ function spawnEntity(cell, intensity = 1) {
     controls,
     knots: makeClampedKnots(controlCount, 3)
   });
-  if (entities.length > 14) entities.shift();
+  if (entities.length > (mode === "chaos" ? 24 : mode === "stable" ? 18 : 12)) entities.shift();
+  emitSpores(cell, Math.floor((mode === "chaos" ? 180 : mode === "stable" ? 96 : 48) * intensity), intensity);
 }
 
 function drawEntities(dt) {
@@ -1375,6 +1468,7 @@ function setMode(nextMode) {
       const parent = cells[Math.floor(rand(0, cells.length))];
       divideCell(parent);
     }
+    cells.forEach((cell) => emitSpores(cell, 120, 1.1));
   } else if (mode === "calme") {
     cells.forEach((cell) => {
       cell.energy *= 0.72;
@@ -1484,6 +1578,7 @@ function addCellFromPointer(event, large = false) {
   born.forEach((created) => {
     created.attachAudio();
     spawnEntity(created, large ? 0.95 : 0.55);
+    emitSpores(created, large ? 240 : 110, large ? 1.2 : 0.85);
   });
   cell.attachAudio();
   if (cells.length > Math.min(MAX_CELLS, modes[mode].capacity)) {
@@ -1543,6 +1638,7 @@ function loadOrganism() {
   stats = data.stats || { totalBorn: data.cells.length, manualBorn: 0, maxGeneration: 0 };
   storyTime = data.storyTime || 0;
   nextGenesisAt = data.nextGenesisAt || storyTime + 900;
+  spores = [];
   cells = data.cells.map((item) => {
     const cell = new Cellule(item.x * width, item.y * height, item.size, item.energy, item.hue, {
       generation: item.generation || 0,
