@@ -81,7 +81,7 @@ const modes = {
     delay: 0.42,
     reverb: 0.58,
     feedback: 0.24,
-    birthTempo: 7200,
+    birthTempo: 3600,
     story: "respiration"
   },
   stable: {
@@ -101,7 +101,7 @@ const modes = {
     delay: 0.24,
     reverb: 0.34,
     feedback: 0.32,
-    birthTempo: 4300,
+    birthTempo: 2300,
     story: "organisme"
   },
   chaos: {
@@ -121,7 +121,7 @@ const modes = {
     delay: 0.12,
     reverb: 0.16,
     feedback: 0.58,
-    birthTempo: 1800,
+    birthTempo: 1100,
     story: "mutation"
   }
 };
@@ -487,6 +487,17 @@ class Cellule {
     ctx.shadowBlur = 0;
 
     ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `hsla(${(mapping.hue + 44) % 360} 96% 68% / ${0.07 + mapping.dimension * 0.12})`;
+    ctx.lineWidth = 0.75;
+    const lattice = Math.min(points.length, Math.floor(5 + temporal.clusterDensity * 12));
+    for (let i = 0; i < lattice; i += 1) {
+      const a = points[(i * 3) % points.length];
+      const b = points[(i * 7 + 5) % points.length];
+      ctx.beginPath();
+      ctx.moveTo(this.x + a.x, this.y + a.y);
+      ctx.lineTo(this.x + b.x, this.y + b.y);
+      ctx.stroke();
+    }
     ctx.strokeStyle = `hsla(${(mapping.hue + 180) % 360} 90% 70% / ${0.12 + mapping.dimension * 0.2})`;
     ctx.lineWidth = 0.75;
     const nucleiCount = Math.min(this.gene.nuclei.length, Math.max(1, Math.floor((1 + temporal.pointDensity * this.gene.nuclei.length) * temporal.quality)));
@@ -679,8 +690,26 @@ function init(newSeed = seed, selectedMode = mode) {
   mode = selectedMode;
   const founderX = width > 760 ? width * 0.68 : width * 0.52;
   const founderY = height > 560 ? height * 0.5 : height * 0.68;
-  cells.push(new Cellule(founderX, founderY, 22, 1.12, rand(110, 190), { generation: 0, origin: "founder", voice: 0 }));
-  addBurst(founderX, founderY, cells[0].hue, 1.2);
+  const founder = new Cellule(founderX, founderY, 24, 1.18, rand(110, 190), { generation: 0, origin: "founder", voice: 0 });
+  cells.push(founder);
+  for (let i = 0; i < 5; i += 1) {
+    const angle = (i / 5) * TAU + rand(-0.22, 0.22);
+    const distance = rand(34, 82);
+    const child = new Cellule(
+      founderX + Math.cos(angle) * distance,
+      founderY + Math.sin(angle) * distance,
+      rand(8, 15),
+      rand(0.72, 0.98),
+      (founder.hue + i * 42 + rand(-16, 16) + 360) % 360,
+      { generation: 1, origin: "division", voice: i % 7 }
+    );
+    child.vx = Math.cos(angle) * rand(0.35, 0.95);
+    child.vy = Math.sin(angle) * rand(0.35, 0.95);
+    cells.push(child);
+  }
+  stats.maxGeneration = 1;
+  addBurst(founderX, founderY, founder.hue, 1.2);
+  spawnEntity(founder, 1.4);
   updateModeButtons();
 }
 
@@ -832,6 +861,7 @@ function evolve(dt) {
 }
 
 function divideCell(cell) {
+  if (cells.length >= Math.min(MAX_CELLS, modes[mode].capacity)) return null;
   cell.energy *= mode === "chaos" ? 0.62 : 0.5;
   cell.baseSize *= mode === "calme" ? 0.94 : 0.88;
   const angle = rand(0, TAU);
@@ -848,6 +878,7 @@ function divideCell(cell) {
   cells.push(child);
   addBurst(cell.x, cell.y, cell.hue, 0.75);
   glitch(cell, 0.5);
+  return child;
 }
 
 function fuseCells(i, j) {
@@ -1102,6 +1133,53 @@ function playBirthChord(cell) {
     gain.connect(audio.dry);
     osc.start(now + index * 0.025);
     osc.stop(now + 0.7 + index * 0.11);
+  });
+}
+
+function playBloomChord(group, large) {
+  if (!audio || group.length === 0) return;
+  const now = audio.ctx.currentTime;
+  const chordCells = group.slice(0, large ? 7 : 4);
+  chordCells.forEach((cell, index) => {
+    const mapping = cell.mapping || mapCellToSoundAndLight(cell, Math.hypot(cell.vx, cell.vy));
+    const osc = audio.ctx.createOscillator();
+    const overtone = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    const filter = audio.ctx.createBiquadFilter();
+    const panner = audio.ctx.createPanner();
+    const start = now + index * 0.045;
+    const duration = large ? 1.45 + index * 0.08 : 0.8 + index * 0.05;
+    const ratio = [1, 1.2, 1.333, 1.5, 1.875, 2, 2.5][index % 7];
+
+    osc.type = index % 3 === 0 ? "sawtooth" : index % 2 === 0 ? "triangle" : "sine";
+    overtone.type = "sine";
+    osc.frequency.value = mapping.frequency * ratio;
+    overtone.frequency.value = mapping.frequency * ratio * 2.01;
+    filter.type = index % 2 === 0 ? "bandpass" : "lowpass";
+    filter.frequency.value = clamp(mapping.filterFrequency * ratio, 240, 10000);
+    filter.Q.value = 3 + index * 0.8;
+    panner.panningModel = "HRTF";
+    panner.distanceModel = "inverse";
+    panner.refDistance = 1.6;
+    panner.maxDistance = 26;
+    panner.rolloffFactor = 1.05;
+    setAudioParam(panner.positionX, mapping.spatialX + Math.cos(index) * 3, now, 0.01);
+    setAudioParam(panner.positionY, mapping.spatialY + Math.sin(index * 1.7) * 2, now, 0.01);
+    setAudioParam(panner.positionZ, mapping.spatialZ + Math.sin(index) * 4, now, 0.01);
+
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(large ? 0.045 : 0.026, start + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(filter);
+    overtone.connect(filter);
+    filter.connect(panner);
+    panner.connect(gain);
+    gain.connect(audio.wet);
+    gain.connect(audio.dry);
+    osc.start(start);
+    overtone.start(start);
+    osc.stop(start + duration + 0.04);
+    overtone.stop(start + duration + 0.04);
   });
 }
 
@@ -1377,18 +1455,46 @@ function addCellFromPointer(event, large = false) {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   const parentGeneration = cells.length ? cells.reduce((max, cell) => Math.max(max, cell.generation), 0) : 0;
+  const bloomCount = large ? 9 : 5;
+  const born = [];
   const cell = new Cellule(x, y, large ? rand(22, 38) : rand(8, 18), large ? 1.12 : 0.82, rand(0, 360), {
     generation: parentGeneration + 1,
     origin: "manual",
     voice: Math.floor(rand(0, 7))
   });
   cells.push(cell);
+  born.push(cell);
+  for (let i = 1; i < bloomCount; i += 1) {
+    if (cells.length >= Math.min(MAX_CELLS, modes[mode].capacity)) break;
+    const angle = (i / bloomCount) * TAU + rand(-0.28, 0.28);
+    const distance = rand(large ? 36 : 18, large ? 130 : 74);
+    const bloom = new Cellule(
+      x + Math.cos(angle) * distance,
+      y + Math.sin(angle) * distance,
+      rand(large ? 9 : 5, large ? 24 : 14),
+      rand(0.56, large ? 1.08 : 0.9),
+      (cell.hue + i * rand(24, 64) + 360) % 360,
+      { generation: parentGeneration + 1 + (i % 3), origin: "manual", voice: (cell.voice + i) % 7 }
+    );
+    bloom.vx = Math.cos(angle) * rand(0.6, large ? 2.2 : 1.4);
+    bloom.vy = Math.sin(angle) * rand(0.6, large ? 2.2 : 1.4);
+    cells.push(bloom);
+    born.push(bloom);
+  }
+  born.forEach((created) => {
+    created.attachAudio();
+    spawnEntity(created, large ? 0.95 : 0.55);
+  });
   cell.attachAudio();
   if (cells.length > Math.min(MAX_CELLS, modes[mode].capacity)) {
-    const removed = cells.shift();
-    removed.stopAudio();
+    while (cells.length > Math.min(MAX_CELLS, modes[mode].capacity)) {
+      const removed = cells.shift();
+      removed.stopAudio();
+    }
   }
-  addBurst(x, y, rand(0, 360), large ? 1 : 0.55);
+  addBurst(x, y, cell.hue, large ? 1.5 : 0.9);
+  playBloomChord(born, large);
+  nextGenesisAt = Math.min(nextGenesisAt, storyTime + 400);
 }
 
 function saveOrganism() {
