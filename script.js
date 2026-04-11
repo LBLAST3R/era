@@ -42,6 +42,7 @@ let immersive = false;
 let storyTime = 0;
 let nextCellId = 1;
 let stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
+let listenerOrbit = 0;
 
 const NOTE_NAMES = ["C", "D", "E", "G", "A", "B", "D+", "E+"];
 const VOICE_NAMES = ["vowel", "glass", "metal", "grain", "organ", "string", "fold"];
@@ -113,6 +114,17 @@ function mapCellToSoundAndLight(cell, speed) {
   const settings = modes[mode];
   const xNorm = cell.x / Math.max(1, width);
   const yNorm = cell.y / Math.max(1, height);
+  const centerX = width * 0.5;
+  const centerY = height * 0.5;
+  const dx = cell.x - centerX;
+  const dy = cell.y - centerY;
+  const dist = Math.hypot(dx, dy) || 1;
+  const nx = dx / Math.max(1, width * 0.5);
+  const ny = dy / Math.max(1, height * 0.5);
+  const radialVelocity = (cell.vx * dx + cell.vy * dy) / dist;
+  const verticalMotion = clamp(-cell.vy / settings.maxSpeed, -1, 1);
+  const horizontalMotion = clamp(cell.vx / settings.maxSpeed, -1, 1);
+  const depthMotion = clamp((radialVelocity + Math.sin(cell.hyper) * 0.8) / settings.maxSpeed, -1, 1);
   const density = clamp(cells.length / Math.max(1, settings.capacity), 0, 1);
   const proximity = clamp(cell.nearCount / 8, 0, 1);
   const isolation = clamp(cell.isolated, 0, 1);
@@ -123,7 +135,10 @@ function mapCellToSoundAndLight(cell, speed) {
   const baseNote = scale[noteIndex];
   const octave = mode === "calme" ? 1 + (cell.generation % 2) * 0.5 : mode === "stable" ? 1 + (cell.generation % 3) * 0.5 : 0.5 + (cell.id % 5) * 0.5;
   const chord = [1, 1.125, 1.25, 1.333, 1.5, 1.666, 2][(cell.voice + cell.nearCount) % 7];
-  const bend = lerp(0.985, 1.015, xNorm) + Math.sin(cell.hyper) * (mode === "chaos" ? 0.028 : 0.012);
+  const motionChaos = Math.sin(storyTime * 0.0017 + cell.id * 12.9898 + cell.voice) * cell.motionJitter;
+  const horizontalColor = horizontalMotion * (0.018 + cell.motionJitter * 0.018);
+  const dopplerBend = Math.pow(2, verticalMotion * (mode === "chaos" ? 0.42 : 0.24) + depthMotion * 0.09 + motionChaos * 0.06);
+  const bend = (lerp(0.985, 1.015, xNorm) + Math.sin(cell.hyper) * (mode === "chaos" ? 0.028 : 0.012) + horizontalColor) * dopplerBend;
   const frequency = baseNote * octave * chord * bend;
   const volume = clamp((cell.size / 66) * (0.02 + energyNorm * 0.075) * (1 - density * 0.54), 0, 0.09);
   const brightness = clamp(0.18 + (1 - yNorm) * 0.42 + speedNorm * 0.28 + proximity * 0.2, 0, 1);
@@ -137,7 +152,7 @@ function mapCellToSoundAndLight(cell, speed) {
     frequency,
     volume,
     brightness,
-    modulation,
+    modulation: clamp(modulation + Math.abs(horizontalMotion) * 0.22 + Math.abs(depthMotion) * 0.12, 0, 1.35),
     dimension,
     hue: (frequency * 0.33 + cell.generation * 22 + cell.voice * 37 + modeHueOffset()) % 360,
     chordHue: chord * 88,
@@ -145,9 +160,16 @@ function mapCellToSoundAndLight(cell, speed) {
     opacity: lerp(0.52, 0.95, energyNorm),
     timbre: waveBank[(cell.voice + Math.floor(speedNorm * 5) + cell.nearCount) % waveBank.length],
     pan: xNorm * 2 - 1,
+    spatialX: clamp(nx * 7 + horizontalMotion * 2.5, -10, 10),
+    spatialY: clamp(-ny * 3 + verticalMotion * 4, -6, 6),
+    spatialZ: clamp((Math.sin(cell.hyper + cell.depth) + depthMotion * 1.8) * 5.5, -9, 9),
+    doppler: dopplerBend,
+    verticalMotion,
+    horizontalMotion,
+    depthMotion,
     filterType: isolation > 0.64 ? "lowpass" : cell.voice % 3 === 0 ? "bandpass" : "highpass",
-    filterFrequency: lerp(260, mode === "chaos" ? 8600 : 5600, brightness) + cell.generation * 18,
-    resonance: lerp(0.8, 8.4, isolation) + proximity * 1.8,
+    filterFrequency: lerp(260, mode === "chaos" ? 9200 : 6200, brightness) + cell.generation * 18 + Math.abs(horizontalMotion) * 1800,
+    resonance: lerp(0.8, 8.4, isolation) + proximity * 1.8 + Math.abs(depthMotion) * 2.2,
     overtoneRatio: [1.5, 1.666, 1.875, 2, 2.25][(cell.voice + cell.generation) % 5],
     overtoneLevel: lerp(0.1, mode === "chaos" ? 0.66 : 0.44, modulation),
     modulationRate: lerp(0.05, mode === "chaos" ? 24 : 9, modulation),
@@ -159,6 +181,12 @@ function modeHueOffset() {
   if (mode === "calme") return 110;
   if (mode === "stable") return 185;
   return 320;
+}
+
+function setAudioParam(param, value, now, smoothing) {
+  if (param && typeof param.setTargetAtTime === "function") {
+    param.setTargetAtTime(value, now, smoothing);
+  }
 }
 
 class Cellule {
@@ -184,6 +212,8 @@ class Cellule {
     this.hyper = rand(0, TAU);
     this.voice = options.voice || Math.floor(rand(0, 7));
     this.noteSeed = options.noteSeed ?? Math.floor(rand(0, 12));
+    this.motionJitter = rand(0.04, 0.24);
+    this.motionMemory = { vx: this.vx, vy: this.vy };
     this.gene = createGenome(size, this.generation);
     this.mapping = {
       noteName: "C",
@@ -218,7 +248,7 @@ class Cellule {
     const overtone = audio.ctx.createOscillator();
     const gain = audio.ctx.createGain();
     const overtoneGain = audio.ctx.createGain();
-    const pan = audio.ctx.createStereoPanner();
+    const panner = audio.ctx.createPanner();
     const filter = audio.ctx.createBiquadFilter();
     const shaper = audio.ctx.createWaveShaper();
     const lfo = audio.ctx.createOscillator();
@@ -230,7 +260,14 @@ class Cellule {
     overtone.frequency.value = 240;
     gain.gain.value = 0;
     overtoneGain.gain.value = 0.018;
-    pan.pan.value = 0;
+    panner.panningModel = "HRTF";
+    panner.distanceModel = "inverse";
+    panner.refDistance = 2.2;
+    panner.maxDistance = 22;
+    panner.rolloffFactor = 1.35;
+    panner.coneInnerAngle = 180;
+    panner.coneOuterAngle = 280;
+    panner.coneOuterGain = 0.22;
     filter.type = "lowpass";
     filter.frequency.value = 1200;
     filter.Q.value = 1.4;
@@ -246,15 +283,15 @@ class Cellule {
     overtone.connect(overtoneGain);
     overtoneGain.connect(shaper);
     shaper.connect(filter);
-    filter.connect(pan);
-    pan.connect(gain);
+    filter.connect(panner);
+    panner.connect(gain);
     gain.connect(audio.wet);
     gain.connect(audio.dry);
 
     osc.start();
     overtone.start();
     lfo.start();
-    this.audio = { osc, overtone, gain, overtoneGain, pan, filter, shaper, lfo, lfoGain };
+    this.audio = { osc, overtone, gain, overtoneGain, panner, filter, shaper, lfo, lfoGain };
   }
 
   stopAudio() {
@@ -346,6 +383,8 @@ class Cellule {
     this.energy = clamp(this.energy, 0, 1.42);
     this.size = clamp(this.baseSize * (0.84 + this.energy * 0.5 + pulse), 3.5, 48);
     this.mapping = mapCellToSoundAndLight(this, speed);
+    this.motionMemory.vx = lerp(this.motionMemory.vx, this.vx, 0.08);
+    this.motionMemory.vy = lerp(this.motionMemory.vy, this.vy, 0.08);
     this.hue = (this.mapping.hue + (this.nearCount * 0.006 + speed * 0.008) * dt) % 360;
 
     this.updateAudio(speed);
@@ -364,7 +403,12 @@ class Cellule {
     this.audio.overtone.frequency.setTargetAtTime(mapping.frequency * mapping.overtoneRatio, now, 0.07);
     this.audio.gain.gain.setTargetAtTime(mapping.volume, now, 0.08);
     this.audio.overtoneGain.gain.setTargetAtTime(mapping.volume * mapping.overtoneLevel, now, 0.12);
-    this.audio.pan.pan.setTargetAtTime(mapping.pan, now, 0.08);
+    setAudioParam(this.audio.panner.positionX, mapping.spatialX, now, 0.08);
+    setAudioParam(this.audio.panner.positionY, mapping.spatialY, now, 0.08);
+    setAudioParam(this.audio.panner.positionZ, mapping.spatialZ, now, 0.08);
+    setAudioParam(this.audio.panner.orientationX, mapping.horizontalMotion, now, 0.1);
+    setAudioParam(this.audio.panner.orientationY, mapping.verticalMotion, now, 0.1);
+    setAudioParam(this.audio.panner.orientationZ, -1, now, 0.1);
     this.audio.filter.type = mapping.filterType;
     this.audio.filter.frequency.setTargetAtTime(mapping.filterFrequency, now, 0.08);
     this.audio.filter.Q.setTargetAtTime(mapping.resonance, now, 0.1);
@@ -425,10 +469,19 @@ class Cellule {
     }
     ctx.globalCompositeOperation = "source-over";
 
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.16 + this.isolated * 0.24})`;
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.16 + this.isolated * 0.24})`;
     ctx.beginPath();
     ctx.arc(this.x - this.size * 0.2, this.y - this.size * 0.18, Math.max(1.4, this.size * 0.14), 0, TAU);
     ctx.fill();
+
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `hsla(${(mapping.hue + (mapping.horizontalMotion > 0 ? 55 : 260)) % 360} 96% 72% / ${0.08 + Math.abs(mapping.horizontalMotion) * 0.24})`;
+    ctx.lineWidth = clamp(this.size * 0.035, 0.6, 1.8);
+    ctx.beginPath();
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - this.vx * 18, this.y - this.vy * 18);
+    ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
   }
 }
 
@@ -889,19 +942,27 @@ function playBirthChord(cell) {
     const osc = audio.ctx.createOscillator();
     const gain = audio.ctx.createGain();
     const filter = audio.ctx.createBiquadFilter();
-    const pan = audio.ctx.createStereoPanner();
+    const panner = audio.ctx.createPanner();
     osc.type = index % 2 === 0 ? "triangle" : mode === "chaos" ? "sawtooth" : "sine";
     osc.frequency.value = mapping.frequency * ratio;
     filter.type = "bandpass";
     filter.frequency.value = mapping.filterFrequency * ratio;
     filter.Q.value = 5 + mapping.dimension * 5;
-    pan.pan.value = mapping.pan * 0.75;
+    panner.panningModel = "HRTF";
+    panner.distanceModel = "inverse";
+    panner.refDistance = 1.8;
+    panner.maxDistance = 24;
+    panner.rolloffFactor = 1.1;
+    const angle = (index / chord.length) * TAU + mapping.dimension * TAU;
+    setAudioParam(panner.positionX, Math.cos(angle) * (3.5 + index), now, 0.01);
+    setAudioParam(panner.positionY, mapping.verticalMotion * 4 + Math.sin(angle * 1.7) * 2, now, 0.01);
+    setAudioParam(panner.positionZ, Math.sin(angle) * (3.5 + index), now, 0.01);
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.035 + mapping.volume * 0.8, now + 0.02 + index * 0.025);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45 + index * 0.11);
     osc.connect(filter);
-    filter.connect(pan);
-    pan.connect(gain);
+    filter.connect(panner);
+    panner.connect(gain);
     gain.connect(audio.wet);
     gain.connect(audio.dry);
     osc.start(now + index * 0.025);
@@ -946,6 +1007,7 @@ async function ensureAudio() {
   const convolver = ctxAudio.createConvolver();
   const distortion = ctxAudio.createWaveShaper();
   const destination = ctxAudio.createMediaStreamDestination();
+  const listener = ctxAudio.listener;
 
   master.gain.value = modes[mode].master;
   dry.gain.value = 0.74;
@@ -955,6 +1017,20 @@ async function ensureAudio() {
   convolver.buffer = impulse(ctxAudio, 2.8, 2.5);
   distortion.curve = distortionCurve(90);
   distortion.oversample = "2x";
+  if (listener.positionX) {
+    listener.positionX.value = 0;
+    listener.positionY.value = 0;
+    listener.positionZ.value = 0;
+    listener.forwardX.value = 0;
+    listener.forwardY.value = 0;
+    listener.forwardZ.value = -1;
+    listener.upX.value = 0;
+    listener.upY.value = 1;
+    listener.upZ.value = 0;
+  } else if (listener.setPosition) {
+    listener.setPosition(0, 0, 0);
+    listener.setOrientation(0, 0, -1, 0, 1, 0);
+  }
 
   dry.connect(master);
   wet.connect(delay);
@@ -967,7 +1043,7 @@ async function ensureAudio() {
   master.connect(ctxAudio.destination);
   master.connect(destination);
 
-  audio = { ctx: ctxAudio, master, dry, wet, delay, feedback, convolver, distortion, destination };
+  audio = { ctx: ctxAudio, master, dry, wet, delay, feedback, convolver, distortion, destination, listener };
   cells.forEach((cell) => cell.attachAudio());
   audioState.textContent = "son actif";
   audioToggle.textContent = "Couper le son";
@@ -978,10 +1054,21 @@ function updateAudioMix() {
   if (!audio) return;
   const settings = modes[mode];
   const now = audio.ctx.currentTime;
+  listenerOrbit += 0.0018 + cells.length * 0.000006;
+  const entityPull = entities.reduce((sum, entity) => sum + entity.life * entity.force, 0);
+  const forwardX = Math.sin(listenerOrbit) * clamp(entityPull * 0.08, 0, 0.85);
+  const forwardZ = -Math.cos(listenerOrbit);
   audio.master.gain.setTargetAtTime(settings.master, now, 0.18);
   audio.delay.delayTime.setTargetAtTime(settings.delay, now, 0.22);
   audio.feedback.gain.setTargetAtTime(settings.feedback, now, 0.18);
   audio.wet.gain.setTargetAtTime(settings.reverb, now, 0.24);
+  if (audio.listener.positionX) {
+    setAudioParam(audio.listener.forwardX, forwardX, now, 0.3);
+    setAudioParam(audio.listener.forwardY, Math.sin(listenerOrbit * 0.7) * 0.18, now, 0.3);
+    setAudioParam(audio.listener.forwardZ, forwardZ, now, 0.3);
+  } else if (audio.listener.setOrientation) {
+    audio.listener.setOrientation(forwardX, 0, forwardZ, 0, 1, 0);
+  }
 }
 
 function impulse(ctxAudio, seconds, decay) {
@@ -1132,7 +1219,8 @@ function saveOrganism() {
       generation: cell.generation,
       origin: cell.origin,
       voice: cell.voice,
-      noteSeed: cell.noteSeed
+      noteSeed: cell.noteSeed,
+      motionJitter: cell.motionJitter
     }))
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -1165,6 +1253,7 @@ function loadOrganism() {
       noteSeed: item.noteSeed || 0,
       count: false
     });
+    cell.motionJitter = item.motionJitter || cell.motionJitter;
     cell.vx = item.vx;
     cell.vy = item.vy;
     return cell;
