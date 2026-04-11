@@ -52,8 +52,11 @@ let temporal = {
   soundDensity: 0.28,
   clusterDensity: 0.45,
   macroPressure: 0.35,
-  grainDebt: 0
+  grainDebt: 0,
+  fps: 60,
+  quality: 1
 };
+const basisCache = new Map();
 
 const NOTE_NAMES = ["C", "D", "E", "G", "A", "B", "D+", "E+"];
 const VOICE_NAMES = ["vowel", "glass", "metal", "grain", "organ", "string", "fold"];
@@ -456,7 +459,7 @@ class Cellule {
     ctx.shadowColor = color;
     ctx.shadowBlur = 18 + this.energy * 24;
     ctx.beginPath();
-    const points = sampleNurbsMembrane(this, Math.floor(34 + temporal.pointDensity * 38));
+    const points = sampleNurbsMembrane(this, Math.floor((20 + temporal.pointDensity * 26) * temporal.quality));
     points.forEach((point, i) => {
       const x = this.x + point.x;
       const y = this.y + point.y;
@@ -473,7 +476,7 @@ class Cellule {
     ctx.globalCompositeOperation = "lighter";
     ctx.strokeStyle = `hsla(${(mapping.hue + 180) % 360} 90% 70% / ${0.12 + mapping.dimension * 0.2})`;
     ctx.lineWidth = 0.75;
-    const nucleiCount = Math.min(this.gene.nuclei.length, Math.max(2, Math.floor(2 + temporal.pointDensity * this.gene.nuclei.length)));
+    const nucleiCount = Math.min(this.gene.nuclei.length, Math.max(1, Math.floor((1 + temporal.pointDensity * this.gene.nuclei.length) * temporal.quality)));
     for (let i = 0; i < nucleiCount; i += 1) {
       const a = this.gene.nuclei[i] + this.phase * (0.42 + i * 0.05);
       const z = Math.sin(this.hyper + i) * 0.5 + 0.5;
@@ -556,12 +559,45 @@ function sampleNurbsMembrane(cell, sampleCount) {
     };
   });
 
+  return sampleWeightedNurbs(controls, cell.gene.degree, cell.gene.knots, sampleCount);
+}
+
+function sampleWeightedNurbs(controls, degree, knots, sampleCount) {
+  const count = Math.max(8, Math.floor(sampleCount));
+  const basisSamples = getBasisSamples(controls.length, degree, knots, count);
   const points = [];
-  for (let i = 0; i < sampleCount; i += 1) {
-    const u = i / sampleCount;
-    points.push(nurbsPoint(u, controls, cell.gene.degree, cell.gene.knots));
+  for (let s = 0; s < basisSamples.length; s += 1) {
+    const basis = basisSamples[s];
+    let x = 0;
+    let y = 0;
+    let denominator = 0;
+    for (let i = 0; i < controls.length; i += 1) {
+      const b = basis[i] * controls[i].w;
+      x += controls[i].x * b;
+      y += controls[i].y * b;
+      denominator += b;
+    }
+    if (denominator === 0) points.push({ x: finite(controls[0].x), y: finite(controls[0].y) });
+    else points.push({ x: finite(x / denominator), y: finite(y / denominator) });
   }
   return points;
+}
+
+function getBasisSamples(controlCount, degree, knots, sampleCount) {
+  const key = `${controlCount}:${degree}:${sampleCount}`;
+  if (basisCache.has(key)) return basisCache.get(key);
+  const basisSamples = [];
+  for (let s = 0; s < sampleCount; s += 1) {
+    const u = s / sampleCount;
+    const basis = [];
+    for (let i = 0; i < controlCount; i += 1) {
+      basis.push(bsplineBasis(i, degree, u, knots));
+    }
+    basisSamples.push(basis);
+  }
+  if (basisCache.size > 80) basisCache.clear();
+  basisCache.set(key, basisSamples);
+  return basisSamples;
 }
 
 function nurbsPoint(u, controls, degree, knots) {
@@ -622,8 +658,10 @@ function init(newSeed = seed, selectedMode = mode) {
 }
 
 function step(time) {
-  const dt = Math.min(40, time - lastTime);
+  const frameDt = time - lastTime;
+  const dt = Math.min(40, frameDt);
   lastTime = time;
+  updatePerformance(frameDt);
   storyTime += dt;
   updateTemporalControls(dt);
 
@@ -644,6 +682,13 @@ function step(time) {
   updateAudioMix(dt);
 
   requestAnimationFrame(step);
+}
+
+function updatePerformance(frameDt) {
+  const instantFps = frameDt > 0 ? 1000 / frameDt : 60;
+  temporal.fps = lerp(temporal.fps, clamp(instantFps, 8, 90), 0.06);
+  const targetQuality = temporal.fps < 24 ? 0.42 : temporal.fps < 38 ? 0.62 : temporal.fps < 52 ? 0.82 : 1;
+  temporal.quality = lerp(temporal.quality, targetQuality, 0.04);
 }
 
 function updateTemporalControls(dt) {
@@ -813,7 +858,7 @@ function drawField() {
   ctx.fillRect(0, 0, width, height);
 
   ctx.globalCompositeOperation = "lighter";
-  const streams = Math.floor((mode === "chaos" ? 38 : mode === "stable" ? 24 : 14) * (0.65 + temporal.pointDensity * 0.8));
+  const streams = Math.floor((mode === "chaos" ? 30 : mode === "stable" ? 20 : 12) * (0.55 + temporal.pointDensity * 0.65) * temporal.quality);
   for (let i = 0; i < streams; i += 1) {
     const speed = mode === "chaos" ? 0.04 : mode === "stable" ? 0.018 : 0.007;
     const x = ((i * 193 + performance.now() * speed) % (width + 240)) - 120;
@@ -833,7 +878,7 @@ function drawConnections() {
       const a = cells[i];
       const b = cells[j];
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
-      const limit = 90 + temporal.clusterDensity * 110;
+      const limit = 80 + temporal.clusterDensity * 90 * temporal.quality;
       if (dist < limit) {
         const alpha = (1 - dist / limit) * (0.08 + temporal.clusterDensity * 0.18);
         const hue = (a.hue + b.hue) / 2;
@@ -898,7 +943,7 @@ function drawEntities(dt) {
 
     const radius = clamp(finite(entity.radius, 120), 1, Math.max(width, height) * 1.2);
     const alpha = clamp(finite(entity.life, 0), 0, 1) * 0.18;
-    const points = sampleEntityNurbs(entity, Math.floor(54 + temporal.macroPressure * 70));
+    const points = sampleEntityNurbs(entity, Math.floor((28 + temporal.macroPressure * 46) * temporal.quality));
     const glow = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, radius);
     glow.addColorStop(0, `hsla(${entity.hue} 98% 66% / ${alpha * 0.7})`);
     glow.addColorStop(0.5, `hsla(${(entity.hue + 120) % 360} 92% 58% / ${alpha * 0.24})`);
@@ -922,7 +967,7 @@ function drawEntities(dt) {
 
     ctx.strokeStyle = `hsla(${(entity.hue + 180) % 360} 96% 70% / ${alpha * 0.7})`;
     ctx.lineWidth = 0.9;
-    const rings = Math.floor(2 + temporal.macroPressure * 5);
+    const rings = Math.floor((1 + temporal.macroPressure * 4) * temporal.quality);
     for (let ring = 0; ring < rings; ring += 1) {
       ctx.beginPath();
       ctx.ellipse(entity.x, entity.y, radius * (0.16 + ring * 0.14), radius * (0.05 + ring * 0.06), entity.age * 0.0004 + ring, 0, TAU);
@@ -955,7 +1000,7 @@ function sampleEntityNurbs(entity, sampleCount) {
 
 function addBurst(x, y, hue, force) {
   bursts.push({ x, y, hue, force, life: 1, radius: 6 + force * 22 });
-  const maxBursts = Math.floor(45 + temporal.pointDensity * 95);
+  const maxBursts = Math.floor((30 + temporal.pointDensity * 62) * temporal.quality);
   while (bursts.length > maxBursts) bursts.shift();
 }
 
@@ -1131,8 +1176,9 @@ function updateAudioMix(dt = 16) {
 
 function playTemporalGrains(dt, now) {
   if (!audio || cells.length === 0) return;
-  temporal.grainDebt += (dt / 1000) * temporal.soundDensity * (mode === "chaos" ? 24 : mode === "stable" ? 14 : 7);
-  const grains = Math.min(5, Math.floor(temporal.grainDebt));
+  const rate = (mode === "chaos" ? 10 : mode === "stable" ? 7 : 4) * temporal.quality;
+  temporal.grainDebt += (dt / 1000) * temporal.soundDensity * rate;
+  const grains = Math.min(2, Math.floor(temporal.grainDebt));
   temporal.grainDebt -= grains;
 
   for (let i = 0; i < grains; i += 1) {
@@ -1142,7 +1188,7 @@ function playTemporalGrains(dt, now) {
     const gain = audio.ctx.createGain();
     const filter = audio.ctx.createBiquadFilter();
     const panner = audio.ctx.createPanner();
-    const duration = rand(0.035, mode === "chaos" ? 0.16 : 0.24) * (0.75 + temporal.local);
+    const duration = rand(0.028, mode === "chaos" ? 0.09 : 0.14) * (0.75 + temporal.local);
     const start = now + rand(0.004, 0.06);
 
     osc.type = mode === "chaos" && rand(0, 1) > 0.45 ? "sawtooth" : rand(0, 1) > 0.6 ? "triangle" : "sine";
@@ -1240,7 +1286,7 @@ function updateReadout() {
   manualCount.textContent = String(stats.manualBorn);
   generationCount.textContent = String(stats.maxGeneration);
   const lead = cells.length ? cells.reduce((best, cell) => (cell.energy + cell.size * 0.01 > best.energy + best.size * 0.01 ? cell : best), cells[0]) : null;
-  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName} / d${temporal.soundDensity.toFixed(1)}` : "silence";
+  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName} / q${temporal.quality.toFixed(1)}` : "silence";
   if (cells.length === 1) storyState.textContent = "germe";
   else if (cells.length < 12) storyState.textContent = "naissance";
   else if (cells.length < modes[mode].target * 0.7) storyState.textContent = "croissance";
