@@ -184,6 +184,10 @@ function modeHueOffset() {
   return 320;
 }
 
+function finite(value, fallback = 0) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
 function setAudioParam(param, value, now, smoothing) {
   if (param && typeof param.setTargetAtTime === "function") {
     param.setTargetAtTime(value, now, smoothing);
@@ -558,8 +562,8 @@ function nurbsPoint(u, controls, degree, knots) {
     y += controls[i].y * b;
     denominator += b;
   }
-  if (denominator === 0) return { x: controls[0].x, y: controls[0].y };
-  return { x: x / denominator, y: y / denominator };
+  if (denominator === 0) return { x: finite(controls[0].x), y: finite(controls[0].y) };
+  return { x: finite(x / denominator), y: finite(y / denominator) };
 }
 
 function bsplineBasis(i, degree, u, knots) {
@@ -598,8 +602,10 @@ function init(newSeed = seed, selectedMode = mode) {
   nextCellId = 1;
   stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
   mode = selectedMode;
-  cells.push(new Cellule(width * 0.5, height * 0.5, 22, 1.12, rand(110, 190), { generation: 0, origin: "founder", voice: 0 }));
-  addBurst(width * 0.5, height * 0.5, cells[0].hue, 1.2);
+  const founderX = width > 760 ? width * 0.68 : width * 0.52;
+  const founderY = height > 560 ? height * 0.5 : height * 0.68;
+  cells.push(new Cellule(founderX, founderY, 22, 1.12, rand(110, 190), { generation: 0, origin: "founder", voice: 0 }));
+  addBurst(founderX, founderY, cells[0].hue, 1.2);
   updateModeButtons();
 }
 
@@ -814,7 +820,8 @@ function drawConnections() {
 
 function spawnEntity(cell, intensity = 1) {
   const mapping = cell.mapping || mapCellToSoundAndLight(cell, Math.hypot(cell.vx, cell.vy));
-  const radius = clamp(cell.size * (18 + cell.generation * 1.6) * intensity, 120, Math.max(width, height) * 0.74);
+  const radiusLimit = Math.max(160, Math.max(width, height) * 0.74);
+  const radius = clamp(finite(cell.size, 12) * (18 + finite(cell.generation, 0) * 1.6) * intensity, 120, radiusLimit);
   const controlCount = 11;
   const controls = [];
   for (let i = 0; i < controlCount; i += 1) {
@@ -829,15 +836,15 @@ function spawnEntity(cell, intensity = 1) {
     });
   }
   entities.push({
-    x: cell.x,
-    y: cell.y,
+    x: finite(cell.x, width * 0.5),
+    y: finite(cell.y, height * 0.5),
     radius,
-    hue: mapping.hue,
+    hue: finite(mapping.hue, 160),
     noteName: mapping.noteName,
-    frequency: mapping.frequency,
+    frequency: finite(mapping.frequency, 110),
     life: 1,
     age: 0,
-    force: intensity * (0.8 + mapping.dimension),
+    force: finite(intensity * (0.8 + mapping.dimension), intensity),
     spin: rand(-1, 1),
     generation: cell.generation,
     controls,
@@ -853,20 +860,21 @@ function drawEntities(dt) {
     entity.age += dt;
     entity.life -= dt * 0.00022;
     entity.radius += dt * (0.015 + entity.force * 0.018);
-    if (entity.life <= 0) {
+    if (entity.life <= 0 || !Number.isFinite(entity.x) || !Number.isFinite(entity.y) || !Number.isFinite(entity.radius)) {
       entities.splice(i, 1);
       continue;
     }
 
-    const alpha = entity.life * 0.18;
+    const radius = clamp(finite(entity.radius, 120), 1, Math.max(width, height) * 1.2);
+    const alpha = clamp(finite(entity.life, 0), 0, 1) * 0.18;
     const points = sampleEntityNurbs(entity, 96);
-    const glow = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, entity.radius);
+    const glow = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, radius);
     glow.addColorStop(0, `hsla(${entity.hue} 98% 66% / ${alpha * 0.7})`);
     glow.addColorStop(0.5, `hsla(${(entity.hue + 120) % 360} 92% 58% / ${alpha * 0.24})`);
     glow.addColorStop(1, `hsla(${entity.hue} 92% 55% / 0)`);
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(entity.x, entity.y, entity.radius, 0, TAU);
+    ctx.arc(entity.x, entity.y, radius, 0, TAU);
     ctx.fill();
 
     ctx.beginPath();
@@ -878,14 +886,14 @@ function drawEntities(dt) {
     });
     ctx.closePath();
     ctx.strokeStyle = `hsla(${entity.hue} 96% 72% / ${alpha + 0.08})`;
-    ctx.lineWidth = clamp(entity.radius * 0.012, 1.2, 5.5);
+    ctx.lineWidth = clamp(radius * 0.012, 1.2, 5.5);
     ctx.stroke();
 
     ctx.strokeStyle = `hsla(${(entity.hue + 180) % 360} 96% 70% / ${alpha * 0.7})`;
     ctx.lineWidth = 0.9;
     for (let ring = 0; ring < 4; ring += 1) {
       ctx.beginPath();
-      ctx.ellipse(entity.x, entity.y, entity.radius * (0.16 + ring * 0.14), entity.radius * (0.05 + ring * 0.06), entity.age * 0.0004 + ring, 0, TAU);
+      ctx.ellipse(entity.x, entity.y, radius * (0.16 + ring * 0.14), radius * (0.05 + ring * 0.06), entity.age * 0.0004 + ring, 0, TAU);
       ctx.stroke();
     }
   }
@@ -898,11 +906,11 @@ function sampleEntityNurbs(entity, sampleCount) {
     const fourD = Math.sin(entity.age * 0.0012 + control.z * 3 + i) * 0.58 * entity.force;
     const projection = 1 / (1.55 - fourD * 0.34);
     const angle = control.angle + Math.sin(phase) * 0.22 + entity.spin * entity.age * 0.00012;
-    const r = entity.radius * control.radius * projection * (0.72 + Math.cos(phase * control.fold) * 0.12);
+    const r = finite(entity.radius, 120) * control.radius * finite(projection, 1) * (0.72 + Math.cos(phase * control.fold) * 0.12);
     return {
-      x: Math.cos(angle) * r,
-      y: Math.sin(angle) * r * (0.62 + projection * 0.18),
-      w: control.w * projection
+      x: finite(Math.cos(angle) * r),
+      y: finite(Math.sin(angle) * r * (0.62 + finite(projection, 1) * 0.18)),
+      w: finite(control.w * projection, 1)
     };
   });
 
