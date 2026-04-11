@@ -46,6 +46,7 @@ let nextCellId = 1;
 let stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
 let listenerOrbit = 0;
 let activeGrains = 0;
+let additive = null;
 let temporal = {
   local: 0,
   medium: 0,
@@ -686,6 +687,7 @@ function init(newSeed = seed, selectedMode = mode) {
   nextGenesisAt = 900;
   nextCellId = 1;
   activeGrains = 0;
+  additive = null;
   lastFrameError = "";
   temporal = {
     local: 0,
@@ -1350,6 +1352,7 @@ async function ensureAudio() {
   master.connect(destination);
 
   audio = { ctx: ctxAudio, master, dry, wet, delay, feedback, convolver, distortion, destination, listener };
+  additive = createAdditiveBank(ctxAudio);
   cells.forEach((cell) => cell.attachAudio());
   audioState.textContent = "son actif";
   audioToggle.textContent = "Couper le son";
@@ -1376,6 +1379,90 @@ function updateAudioMix(dt = 16) {
     audio.listener.setOrientation(forwardX, 0, forwardZ, 0, 1, 0);
   }
   playTemporalGrains(dt, now);
+  updateAdditiveTimbre(now);
+}
+
+function createAdditiveBank(ctxAudio) {
+  const partials = [];
+  const bankGain = ctxAudio.createGain();
+  const filter = ctxAudio.createBiquadFilter();
+  const panner = ctxAudio.createPanner();
+
+  bankGain.gain.value = 0;
+  filter.type = "lowpass";
+  filter.frequency.value = 2400;
+  filter.Q.value = 0.8;
+  panner.panningModel = "HRTF";
+  panner.distanceModel = "inverse";
+  panner.refDistance = 2;
+  panner.maxDistance = 30;
+  panner.rolloffFactor = 1.1;
+
+  for (let i = 0; i < 32; i += 1) {
+    const osc = ctxAudio.createOscillator();
+    const gain = ctxAudio.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 80 + i * 12;
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(filter);
+    osc.start();
+    partials.push({ osc, gain, phase: rand(0, TAU) });
+  }
+
+  filter.connect(panner);
+  panner.connect(bankGain);
+  bankGain.connect(audio ? audio.wet : ctxAudio.destination);
+  bankGain.connect(audio ? audio.dry : ctxAudio.destination);
+  return { partials, bankGain, filter, panner };
+}
+
+function updateAdditiveTimbre(now) {
+  if (!audio || !additive || spores.length === 0) return;
+  const sampleCount = Math.min(spores.length, mode === "chaos" ? 900 : mode === "stable" ? 560 : 320);
+  const stride = Math.max(1, Math.floor(spores.length / sampleCount));
+  const bins = additive.partials.map(() => ({ amp: 0, freq: 0, x: 0, y: 0, z: 0 }));
+  let total = 0;
+  let centroidX = 0;
+  let centroidY = 0;
+  let centroidZ = 0;
+  let brightness = 0;
+
+  for (let i = 0, seen = 0; i < spores.length && seen < sampleCount; i += stride, seen += 1) {
+    const spore = spores[i];
+    const normX = clamp(spore.x / Math.max(1, width), 0, 1);
+    const normY = clamp(spore.y / Math.max(1, height), 0, 1);
+    const depth = clamp(spore.z, -1.4, 1.4);
+    const binIndex = Math.min(bins.length - 1, Math.floor((normX * 0.55 + normY * 0.25 + (depth + 1.4) * 0.071) * bins.length));
+    const amp = clamp(spore.life * spore.size * 0.08, 0, 0.35);
+    const freq = 42 + normX * 880 + (1 - normY) * 360 + depth * 110 + (spore.hue % 120);
+    bins[binIndex].amp += amp;
+    bins[binIndex].freq += freq * amp;
+    bins[binIndex].x += (normX * 2 - 1) * amp;
+    bins[binIndex].y += (1 - normY * 2) * amp;
+    bins[binIndex].z += depth * amp;
+    total += amp;
+    centroidX += (normX * 2 - 1) * amp;
+    centroidY += (1 - normY * 2) * amp;
+    centroidZ += depth * amp;
+    brightness += freq * amp;
+  }
+
+  const masterAmp = clamp(total / Math.max(1, sampleCount) * (mode === "chaos" ? 1.5 : 1.1), 0, 0.16);
+  additive.bankGain.gain.setTargetAtTime(masterAmp, now, 0.18);
+  additive.filter.frequency.setTargetAtTime(clamp((brightness / Math.max(1, total)) * (0.9 + temporal.soundDensity), 320, 8000), now, 0.22);
+  additive.filter.Q.setTargetAtTime(0.7 + temporal.clusterDensity * 5, now, 0.24);
+  setAudioParam(additive.panner.positionX, clamp(centroidX / Math.max(0.001, total) * 7, -8, 8), now, 0.18);
+  setAudioParam(additive.panner.positionY, clamp(centroidY / Math.max(0.001, total) * 4, -5, 5), now, 0.18);
+  setAudioParam(additive.panner.positionZ, clamp(centroidZ / Math.max(0.001, total) * 7, -9, 9), now, 0.18);
+
+  additive.partials.forEach((partial, index) => {
+    const bin = bins[index];
+    const amp = clamp(bin.amp / Math.max(1, total), 0, 0.12) * temporal.soundDensity;
+    const freq = bin.amp > 0 ? bin.freq / bin.amp : 45 + index * 31;
+    partial.osc.frequency.setTargetAtTime(clamp(freq, 28, 9000), now, 0.12);
+    partial.gain.gain.setTargetAtTime(amp, now, 0.14);
+  });
 }
 
 function playTemporalGrains(dt, now) {
