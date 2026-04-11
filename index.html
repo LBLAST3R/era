@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Organisme electro-acoustique</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <canvas id="organism" aria-label="Organisme sonore generatif"></canvas>
+
+    <main class="hud">
+      <section class="panel intro" aria-label="Commandes">
+        <p class="eyebrow">Projet electro-acoustique</p>
+        <h1>Musique vivante</h1>
+        <p>
+          Chaque cellule est une source sonore. L'organisme bouge, fusionne,
+          se divise et transforme le timbre en temps reel.
+        </p>
+        <button id="audioToggle" class="primary">Activer le son</button>
+      </section>
+
+      <section class="panel controls" aria-label="Modes et actions">
+        <div class="mode-row" role="group" aria-label="Modes">
+          <button class="mode active" data-mode="calme">Calme</button>
+          <button class="mode" data-mode="stable">Stable</button>
+          <button class="mode" data-mode="chaos">Chaos</button>
+        </div>
+
+        <div class="button-grid">
+          <button id="seedButton">Nouvelle seed</button>
+          <button id="saveButton">Sauvegarder</button>
+          <button id="loadButton">Charger</button>
+          <button id="recordButton">Enregistrer</button>
+        </div>
+
+        <label class="field">
+          Seed reproductible
+          <input id="seedInput" spellcheck="false">
+        </label>
+      </section>
+    </main>
+
+    <aside class="readout" aria-live="polite">
+      <span><strong id="cellCount">0</strong> cellules</span>
+      <span><strong id="modeName">calme</strong></span>
+      <span><strong id="audioState">son inactif</strong></span>
+    </aside>
+
+    <script src="script.js"></script>
+  </body>
+</html>
