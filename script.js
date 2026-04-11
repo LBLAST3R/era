@@ -44,6 +44,16 @@ let nextGenesisAt = 900;
 let nextCellId = 1;
 let stats = { totalBorn: 0, manualBorn: 0, maxGeneration: 0 };
 let listenerOrbit = 0;
+let temporal = {
+  local: 0,
+  medium: 0,
+  long: 0,
+  pointDensity: 0.55,
+  soundDensity: 0.28,
+  clusterDensity: 0.45,
+  macroPressure: 0.35,
+  grainDebt: 0
+};
 
 const NOTE_NAMES = ["C", "D", "E", "G", "A", "B", "D+", "E+"];
 const VOICE_NAMES = ["vowel", "glass", "metal", "grain", "organ", "string", "fold"];
@@ -126,7 +136,8 @@ function mapCellToSoundAndLight(cell, speed) {
   const verticalMotion = clamp(-cell.vy / settings.maxSpeed, -1, 1);
   const horizontalMotion = clamp(cell.vx / settings.maxSpeed, -1, 1);
   const depthMotion = clamp((radialVelocity + Math.sin(cell.hyper) * 0.8) / settings.maxSpeed, -1, 1);
-  const density = clamp(cells.length / Math.max(1, settings.capacity), 0, 1);
+  const populationDensity = clamp(cells.length / Math.max(1, settings.capacity), 0, 1);
+  const density = clamp(populationDensity * 0.68 + temporal.clusterDensity * 0.32, 0, 1);
   const proximity = clamp(cell.nearCount / 8, 0, 1);
   const isolation = clamp(cell.isolated, 0, 1);
   const speedNorm = clamp(speed / settings.maxSpeed, 0, 1);
@@ -141,10 +152,10 @@ function mapCellToSoundAndLight(cell, speed) {
   const dopplerBend = Math.pow(2, verticalMotion * (mode === "chaos" ? 0.42 : 0.24) + depthMotion * 0.09 + motionChaos * 0.06);
   const bend = (lerp(0.985, 1.015, xNorm) + Math.sin(cell.hyper) * (mode === "chaos" ? 0.028 : 0.012) + horizontalColor) * dopplerBend;
   const frequency = baseNote * octave * chord * bend;
-  const volume = clamp((cell.size / 66) * (0.02 + energyNorm * 0.075) * (1 - density * 0.54), 0, 0.09);
-  const brightness = clamp(0.18 + (1 - yNorm) * 0.42 + speedNorm * 0.28 + proximity * 0.2, 0, 1);
-  const modulation = clamp(speedNorm * 0.66 + proximity * 0.28 + (mode === "chaos" ? 0.18 : 0), 0, 1);
-  const dimension = clamp(Math.sin(cell.hyper + cell.depth) * 0.5 + 0.5 + energyNorm * 0.25 + proximity * 0.2, 0, 1.45);
+  const volume = clamp((cell.size / 66) * (0.018 + energyNorm * 0.072) * (1 - density * 0.48) * (0.74 + temporal.soundDensity * 0.52), 0, 0.095);
+  const brightness = clamp(0.14 + (1 - yNorm) * 0.38 + speedNorm * 0.24 + proximity * 0.16 + temporal.pointDensity * 0.22, 0, 1);
+  const modulation = clamp(speedNorm * 0.54 + proximity * 0.24 + temporal.local * 0.22 + temporal.clusterDensity * 0.18 + (mode === "chaos" ? 0.18 : 0), 0, 1);
+  const dimension = clamp(Math.sin(cell.hyper + cell.depth + temporal.long * TAU) * 0.5 + 0.5 + energyNorm * 0.22 + proximity * 0.16 + temporal.macroPressure * 0.28, 0, 1.65);
   const waveBank = mode === "calme" ? ["sine", "triangle"] : mode === "stable" ? ["sine", "triangle", "square"] : ["sawtooth", "triangle", "square", "sine"];
 
   return {
@@ -445,7 +456,7 @@ class Cellule {
     ctx.shadowColor = color;
     ctx.shadowBlur = 18 + this.energy * 24;
     ctx.beginPath();
-    const points = sampleNurbsMembrane(this, 64);
+    const points = sampleNurbsMembrane(this, Math.floor(34 + temporal.pointDensity * 38));
     points.forEach((point, i) => {
       const x = this.x + point.x;
       const y = this.y + point.y;
@@ -462,7 +473,8 @@ class Cellule {
     ctx.globalCompositeOperation = "lighter";
     ctx.strokeStyle = `hsla(${(mapping.hue + 180) % 360} 90% 70% / ${0.12 + mapping.dimension * 0.2})`;
     ctx.lineWidth = 0.75;
-    for (let i = 0; i < this.gene.nuclei.length; i += 1) {
+    const nucleiCount = Math.min(this.gene.nuclei.length, Math.max(2, Math.floor(2 + temporal.pointDensity * this.gene.nuclei.length)));
+    for (let i = 0; i < nucleiCount; i += 1) {
       const a = this.gene.nuclei[i] + this.phase * (0.42 + i * 0.05);
       const z = Math.sin(this.hyper + i) * 0.5 + 0.5;
       const r = this.size * (0.18 + z * 0.34);
@@ -613,6 +625,7 @@ function step(time) {
   const dt = Math.min(40, time - lastTime);
   lastTime = time;
   storyTime += dt;
+  updateTemporalControls(dt);
 
   ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = "rgba(8, 11, 10, 0.16)";
@@ -628,9 +641,27 @@ function step(time) {
   drawBursts(dt);
   drawMouseField();
   updateReadout();
-  updateAudioMix();
+  updateAudioMix(dt);
 
   requestAnimationFrame(step);
+}
+
+function updateTemporalControls(dt) {
+  const settings = modes[mode];
+  const density = clamp(cells.length / Math.max(1, settings.capacity), 0, 1);
+  temporal.local = (temporal.local + dt * (0.0018 + settings.density * 0.00055 + density * 0.0009)) % 1;
+  temporal.medium = (temporal.medium + dt * (0.00018 + settings.density * 0.00006 + density * 0.00012)) % 1;
+  temporal.long = (temporal.long + dt * (0.000018 + settings.density * 0.000008 + density * 0.000012)) % 1;
+
+  const localPulse = Math.sin(temporal.local * TAU) * 0.5 + 0.5;
+  const mediumPulse = Math.sin(temporal.medium * TAU + density * 2.4) * 0.5 + 0.5;
+  const longPulse = Math.sin(temporal.long * TAU + cells.length * 0.018) * 0.5 + 0.5;
+  const jitter = Math.sin(storyTime * 0.017 + cells.length * 12.17) * 0.5 + 0.5;
+
+  temporal.pointDensity = clamp(0.18 + localPulse * 0.42 + mediumPulse * 0.2 + density * 0.38, 0.08, 1.35);
+  temporal.soundDensity = clamp(0.08 + localPulse * 0.34 + mediumPulse * 0.18 + longPulse * 0.2 + density * 0.46 + jitter * 0.08, 0.05, mode === "chaos" ? 1.45 : 1.05);
+  temporal.clusterDensity = clamp(0.12 + mediumPulse * 0.58 + density * 0.42, 0.08, 1.25);
+  temporal.macroPressure = clamp(0.12 + longPulse * 0.72 + density * 0.25, 0.08, 1.2);
 }
 
 function updateRelations(dt) {
@@ -782,12 +813,12 @@ function drawField() {
   ctx.fillRect(0, 0, width, height);
 
   ctx.globalCompositeOperation = "lighter";
-  const streams = mode === "chaos" ? 38 : mode === "stable" ? 24 : 14;
+  const streams = Math.floor((mode === "chaos" ? 38 : mode === "stable" ? 24 : 14) * (0.65 + temporal.pointDensity * 0.8));
   for (let i = 0; i < streams; i += 1) {
     const speed = mode === "chaos" ? 0.04 : mode === "stable" ? 0.018 : 0.007;
     const x = ((i * 193 + performance.now() * speed) % (width + 240)) - 120;
     const y = (Math.sin(i * 99 + performance.now() * 0.0003 * settings.density) * 0.5 + 0.5) * height;
-    ctx.fillStyle = `hsla(${(i * 34 + (mode === "chaos" ? 330 : 150)) % 360} 80% 62% / ${mode === "chaos" ? 0.026 : 0.018})`;
+    ctx.fillStyle = `hsla(${(i * 34 + (mode === "chaos" ? 330 : 150)) % 360} 80% 62% / ${(mode === "chaos" ? 0.022 : 0.014) * (0.7 + temporal.pointDensity)})`;
     ctx.beginPath();
     ctx.arc(x, y, 70 + (i % 4) * (mode === "chaos" ? 46 : 34), 0, TAU);
     ctx.fill();
@@ -802,9 +833,9 @@ function drawConnections() {
       const a = cells[i];
       const b = cells[j];
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
-      const limit = 150;
+      const limit = 90 + temporal.clusterDensity * 110;
       if (dist < limit) {
-        const alpha = (1 - dist / limit) * 0.18;
+        const alpha = (1 - dist / limit) * (0.08 + temporal.clusterDensity * 0.18);
         const hue = (a.hue + b.hue) / 2;
         ctx.strokeStyle = `hsla(${hue} 92% 66% / ${alpha})`;
         ctx.lineWidth = 1 + alpha * 8;
@@ -859,7 +890,7 @@ function drawEntities(dt) {
     const entity = entities[i];
     entity.age += dt;
     entity.life -= dt * 0.00022;
-    entity.radius += dt * (0.015 + entity.force * 0.018);
+    entity.radius += dt * (0.012 + entity.force * 0.014 + temporal.macroPressure * 0.02);
     if (entity.life <= 0 || !Number.isFinite(entity.x) || !Number.isFinite(entity.y) || !Number.isFinite(entity.radius)) {
       entities.splice(i, 1);
       continue;
@@ -867,7 +898,7 @@ function drawEntities(dt) {
 
     const radius = clamp(finite(entity.radius, 120), 1, Math.max(width, height) * 1.2);
     const alpha = clamp(finite(entity.life, 0), 0, 1) * 0.18;
-    const points = sampleEntityNurbs(entity, 96);
+    const points = sampleEntityNurbs(entity, Math.floor(54 + temporal.macroPressure * 70));
     const glow = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, radius);
     glow.addColorStop(0, `hsla(${entity.hue} 98% 66% / ${alpha * 0.7})`);
     glow.addColorStop(0.5, `hsla(${(entity.hue + 120) % 360} 92% 58% / ${alpha * 0.24})`);
@@ -891,7 +922,8 @@ function drawEntities(dt) {
 
     ctx.strokeStyle = `hsla(${(entity.hue + 180) % 360} 96% 70% / ${alpha * 0.7})`;
     ctx.lineWidth = 0.9;
-    for (let ring = 0; ring < 4; ring += 1) {
+    const rings = Math.floor(2 + temporal.macroPressure * 5);
+    for (let ring = 0; ring < rings; ring += 1) {
       ctx.beginPath();
       ctx.ellipse(entity.x, entity.y, radius * (0.16 + ring * 0.14), radius * (0.05 + ring * 0.06), entity.age * 0.0004 + ring, 0, TAU);
       ctx.stroke();
@@ -923,7 +955,8 @@ function sampleEntityNurbs(entity, sampleCount) {
 
 function addBurst(x, y, hue, force) {
   bursts.push({ x, y, hue, force, life: 1, radius: 6 + force * 22 });
-  if (bursts.length > 80) bursts.shift();
+  const maxBursts = Math.floor(45 + temporal.pointDensity * 95);
+  while (bursts.length > maxBursts) bursts.shift();
 }
 
 function drawBursts(dt) {
@@ -936,7 +969,7 @@ function drawBursts(dt) {
       bursts.splice(i, 1);
       continue;
     }
-    ctx.strokeStyle = `hsla(${burst.hue} 96% 68% / ${burst.life * 0.34})`;
+    ctx.strokeStyle = `hsla(${burst.hue} 96% 68% / ${burst.life * (0.18 + temporal.pointDensity * 0.24)})`;
     ctx.lineWidth = 1 + burst.force * 4;
     ctx.beginPath();
     ctx.arc(burst.x, burst.y, burst.radius, 0, TAU);
@@ -1074,7 +1107,7 @@ async function ensureAudio() {
   return audio;
 }
 
-function updateAudioMix() {
+function updateAudioMix(dt = 16) {
   if (!audio) return;
   const settings = modes[mode];
   const now = audio.ctx.currentTime;
@@ -1082,16 +1115,62 @@ function updateAudioMix() {
   const entityPull = entities.reduce((sum, entity) => sum + entity.life * entity.force, 0);
   const forwardX = Math.sin(listenerOrbit) * clamp(entityPull * 0.08, 0, 0.85);
   const forwardZ = -Math.cos(listenerOrbit);
-  audio.master.gain.setTargetAtTime(settings.master, now, 0.18);
-  audio.delay.delayTime.setTargetAtTime(settings.delay, now, 0.22);
-  audio.feedback.gain.setTargetAtTime(settings.feedback, now, 0.18);
-  audio.wet.gain.setTargetAtTime(settings.reverb, now, 0.24);
+  audio.master.gain.setTargetAtTime(settings.master * (0.82 + temporal.macroPressure * 0.28), now, 0.18);
+  audio.delay.delayTime.setTargetAtTime(settings.delay * (0.74 + temporal.clusterDensity * 0.54), now, 0.22);
+  audio.feedback.gain.setTargetAtTime(clamp(settings.feedback + temporal.soundDensity * 0.12, 0.08, 0.72), now, 0.18);
+  audio.wet.gain.setTargetAtTime(settings.reverb * (0.72 + temporal.macroPressure * 0.5), now, 0.24);
   if (audio.listener.positionX) {
     setAudioParam(audio.listener.forwardX, forwardX, now, 0.3);
     setAudioParam(audio.listener.forwardY, Math.sin(listenerOrbit * 0.7) * 0.18, now, 0.3);
     setAudioParam(audio.listener.forwardZ, forwardZ, now, 0.3);
   } else if (audio.listener.setOrientation) {
     audio.listener.setOrientation(forwardX, 0, forwardZ, 0, 1, 0);
+  }
+  playTemporalGrains(dt, now);
+}
+
+function playTemporalGrains(dt, now) {
+  if (!audio || cells.length === 0) return;
+  temporal.grainDebt += (dt / 1000) * temporal.soundDensity * (mode === "chaos" ? 24 : mode === "stable" ? 14 : 7);
+  const grains = Math.min(5, Math.floor(temporal.grainDebt));
+  temporal.grainDebt -= grains;
+
+  for (let i = 0; i < grains; i += 1) {
+    const cell = cells[Math.floor(rand(0, cells.length))];
+    const mapping = cell.mapping || mapCellToSoundAndLight(cell, Math.hypot(cell.vx, cell.vy));
+    const osc = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    const filter = audio.ctx.createBiquadFilter();
+    const panner = audio.ctx.createPanner();
+    const duration = rand(0.035, mode === "chaos" ? 0.16 : 0.24) * (0.75 + temporal.local);
+    const start = now + rand(0.004, 0.06);
+
+    osc.type = mode === "chaos" && rand(0, 1) > 0.45 ? "sawtooth" : rand(0, 1) > 0.6 ? "triangle" : "sine";
+    osc.frequency.value = mapping.frequency * [0.5, 1, 1.25, 1.5, 2][Math.floor(rand(0, 5))] * rand(0.985, 1.018);
+    filter.type = rand(0, 1) > temporal.clusterDensity ? "bandpass" : "lowpass";
+    filter.frequency.value = clamp(mapping.filterFrequency * rand(0.6, 1.6), 180, 10000);
+    filter.Q.value = 2 + temporal.pointDensity * 10 + rand(0, 3);
+    panner.panningModel = "HRTF";
+    panner.distanceModel = "inverse";
+    panner.refDistance = 1.6;
+    panner.maxDistance = 24;
+    panner.rolloffFactor = 1.2;
+    setAudioParam(panner.positionX, mapping.spatialX + rand(-2.4, 2.4), now, 0.01);
+    setAudioParam(panner.positionY, mapping.spatialY + rand(-1.6, 1.6), now, 0.01);
+    setAudioParam(panner.positionZ, mapping.spatialZ + rand(-3.2, 3.2), now, 0.01);
+
+    const peak = clamp(0.006 + mapping.volume * 0.34 * temporal.soundDensity, 0.003, 0.034);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(peak, start + duration * 0.22);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+    osc.connect(filter);
+    filter.connect(panner);
+    panner.connect(gain);
+    gain.connect(audio.wet);
+    gain.connect(audio.dry);
+    osc.start(start);
+    osc.stop(start + duration + 0.03);
   }
 }
 
@@ -1161,7 +1240,7 @@ function updateReadout() {
   manualCount.textContent = String(stats.manualBorn);
   generationCount.textContent = String(stats.maxGeneration);
   const lead = cells.length ? cells.reduce((best, cell) => (cell.energy + cell.size * 0.01 > best.energy + best.size * 0.01 ? cell : best), cells[0]) : null;
-  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName}` : "silence";
+  mappingState.textContent = lead ? `${lead.mapping.noteName} / ${lead.mapping.voiceName} / d${temporal.soundDensity.toFixed(1)}` : "silence";
   if (cells.length === 1) storyState.textContent = "germe";
   else if (cells.length < 12) storyState.textContent = "naissance";
   else if (cells.length < modes[mode].target * 0.7) storyState.textContent = "croissance";
