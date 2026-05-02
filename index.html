@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sonic Genesis</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <section id="screen-welcome" class="screen">
+        <h1>Sonic Genesis</h1>
+        <p class="tagline">Upload a sound. Watch it become alive.</p>
+        <label class="import-btn">
+          <input type="file" id="file-audio" accept="audio/*" hidden />
+          <span>Import a track</span>
+        </label>
+        <p class="hint">Audio files (mp3, wav, ogg, m4a…). Click anywhere after import to start.</p>
+      </section>
+
+      <section id="screen-experience" class="screen hidden" aria-hidden="true">
+        <canvas id="view" width="800" height="600"></canvas>
+        <canvas id="view-gl" width="800" height="600" class="view-gl"></canvas>
+        <div class="hud">
+          <div class="hud-title" id="hud-filename">—</div>
+          <div class="hud-time"><span id="hud-time">0:00</span> / <span id="hud-duration">0:00</span></div>
+          <div class="hud-bars" aria-label="Spectral energy">
+            <div class="bar"><span>Low</span><i id="bar-bass" style="--p:0%"></i></div>
+            <div class="bar"><span>Mid</span><i id="bar-mid" style="--p:0%"></i></div>
+            <div class="bar"><span>High</span><i id="bar-treble" style="--p:0%"></i></div>
+          </div>
+          <div class="hud-stats">
+            <span>Cells: <strong id="hud-cells">0</strong></span>
+            <span>State: <strong id="hud-state">Dormance</strong></span>
+            <span>FPS: <strong id="hud-fps">60</strong></span>
+          </div>
+        </div>
+        <div class="keys" aria-label="Keyboard shortcuts">
+          <kbd>C</kbd> calm &nbsp; <kbd>X</kbd> chaos &nbsp; <kbd>M</kbd> mutation &nbsp; <kbd>R</kbd> reset
+          &nbsp; <kbd>S</kbd> save image
+        </div>
+      </section>
+
+      <div id="screen-end" class="overlay hidden" role="dialog" aria-label="Track ended">
+        <div class="end-card">
+          <h2>Organism complete</h2>
+          <p class="dna-preview" id="end-dna">—</p>
+          <div class="end-actions">
+            <button type="button" id="btn-export-png">Save image</button>
+            <button type="button" id="btn-export-json">Save ADN (JSON)</button>
+            <button type="button" id="btn-new">New track</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
