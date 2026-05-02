@@ -8,6 +8,11 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0"
   },
+  "dependencies": {
+    "p5": "^1.11.3",
+    "simplex-noise": "^4.0.1",
+    "tone": "^15.0.4"
+  },
   "devDependencies": {
     "vite": "^7.1.0"
   }

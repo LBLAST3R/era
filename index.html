@@ -3,41 +3,45 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Organisme electro-acoustique</title>
+    <title>Organisme sonore — émergence, espace-temps</title>
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <canvas id="organism" aria-label="Organisme sonore generatif"></canvas>
+    <div id="p5-root" aria-label="Canvas organisme sonore generatif"></div>
 
     <main class="hud">
       <section class="panel intro" aria-label="Commandes">
-        <p class="eyebrow">Projet electro-acoustique</p>
-        <h1>Musique vivante</h1>
+        <p class="eyebrow">Projet électroacoustique générative</p>
+        <h1>Organisme sonore</h1>
         <p>
-          Une cellule fondatrice ouvre l'espace. Ses divisions composent un
-          organisme sonore, instable, calme ou chaotique.
+          Chaque cellule est une source sonore (pools de synthèse&nbsp;; voir README).
+          Clic court&nbsp;: ajout. Clic long / clic droit&nbsp;: amas énergétique. Molette&nbsp;: densité.
         </p>
-        <button id="audioToggle" class="primary">Activer le son</button>
+        <p class="hint-keys">
+          <kbd>C</kbd> calme &nbsp; <kbd>S</kbd> stable &nbsp; <kbd>X</kbd> chaos &nbsp; <kbd>R</kbd> reset
+          &nbsp; <kbd>M</kbd> muet &nbsp; <kbd>E</kbd> JSON &nbsp; <kbd>P</kbd> PNG &nbsp; <kbd>H</kbd> plein écran
+        </p>
+        <button id="audioToggle" class="primary" type="button">Activer le son</button>
       </section>
 
       <section class="panel controls" aria-label="Modes et actions">
         <div class="mode-row" role="group" aria-label="Modes">
-          <button class="mode active" data-mode="calme">Calme</button>
-          <button class="mode" data-mode="stable">Stable</button>
-          <button class="mode" data-mode="chaos">Chaos</button>
+          <button type="button" class="mode active" data-mode="calme">Calme</button>
+          <button type="button" class="mode" data-mode="stable">Stable</button>
+          <button type="button" class="mode" data-mode="chaos">Chaos</button>
         </div>
 
         <div class="button-grid">
-          <button id="fullscreenButton">Plein ecran</button>
-          <button id="seedButton">Nouvelle seed</button>
-          <button id="saveButton">Sauvegarder</button>
-          <button id="loadButton">Charger</button>
-          <button id="recordButton">Enregistrer</button>
+          <button type="button" id="fullscreenButton">Plein ecran</button>
+          <button type="button" id="seedButton">Nouvelle seed</button>
+          <button type="button" id="saveButton">Sauvegarder</button>
+          <button type="button" id="loadButton">Charger</button>
+          <button type="button" id="recordButton">Enregistrer</button>
         </div>
 
         <label class="field">
           Seed reproductible
-          <input id="seedInput" spellcheck="false">
+          <input id="seedInput" spellcheck="false" autocomplete="off">
         </label>
       </section>
     </main>
@@ -53,6 +57,6 @@
       <span><strong id="audioState">son inactif</strong></span>
     </aside>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
