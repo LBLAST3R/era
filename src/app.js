@@ -119,7 +119,7 @@ const EVENT_LABELS = {
   death: "FADE",
 };
 
-const RITUAL_DURATION = 480;
+const RITUAL_DURATION = 300;
 
 const PHASES = [
   { id: "germination", label: "Bionum" },
@@ -132,111 +132,93 @@ const PHASES = [
 
 const RITUAL_STAGES = [
   {
-    id: "ritual-birth",
+    id: "ritual-awakening",
     start: 0,
-    label: "Rituel I - Naissance",
-    text: "Naissance: quelques voix profondes sortent du silence.",
+    label: "Rituel I - Eveil",
+    text: "Eveil: quelques cellules calmes ouvrent la trajectoire.",
     profile: {
       targetCells: 4,
-      targetEnergy: 0.18,
-      speed: 0.36,
-      chaos: 0.03,
-      division: 0.04,
+      targetEnergy: 0.22,
+      speed: 0.42,
+      chaos: 0.05,
+      division: 0.12,
       death: 0.45,
-      collisions: 0.1,
-      consonance: 0.97,
-      reverb: 0.82,
-      lowpass: 4200,
+      collisions: 0.14,
+      consonance: 0.94,
+      reverb: 0.78,
+      lowpass: 4800,
     },
   },
   {
-    id: "ritual-growth",
-    start: 0.16,
-    label: "Rituel II - Croissance",
-    text: "Croissance: la colonie se multiplie en harmonies proches.",
+    id: "ritual-proliferation",
+    start: 0.18,
+    label: "Rituel II - Proliferation",
+    text: "Proliferation: les voix se multiplient et l'espace se remplit.",
     profile: {
-      targetCells: 12,
-      targetEnergy: 0.52,
-      speed: 0.72,
-      chaos: 0.12,
-      division: 0.86,
-      death: 0.55,
-      collisions: 0.34,
-      consonance: 0.88,
-      reverb: 0.66,
-      lowpass: 7200,
+      targetCells: 9,
+      targetEnergy: 0.44,
+      speed: 0.68,
+      chaos: 0.18,
+      division: 0.78,
+      death: 0.5,
+      collisions: 0.38,
+      consonance: 0.82,
+      reverb: 0.62,
+      lowpass: 7400,
     },
   },
   {
-    id: "ritual-organism",
-    start: 0.36,
-    label: "Rituel III - Organisme",
-    text: "Organisation: les cellules cherchent un accord commun.",
+    id: "ritual-friction",
+    start: 0.4,
+    label: "Rituel III - Friction",
+    text: "Friction: les trajectoires se croisent, la tension harmonique monte.",
     profile: {
-      targetCells: 16,
-      targetEnergy: 0.56,
-      speed: 0.82,
-      chaos: 0.16,
-      division: 0.22,
-      death: 0.52,
-      collisions: 0.3,
-      consonance: 0.92,
-      reverb: 0.58,
-      lowpass: 8600,
+      targetCells: 14,
+      targetEnergy: 0.62,
+      speed: 0.94,
+      chaos: 0.4,
+      division: 0.88,
+      death: 0.42,
+      collisions: 0.72,
+      consonance: 0.62,
+      reverb: 0.5,
+      lowpass: 9400,
     },
   },
   {
-    id: "ritual-mutation",
-    start: 0.58,
-    label: "Rituel IV - Mutation",
-    text: "Mutation: tension, frottements et accidents controles.",
+    id: "ritual-surge",
+    start: 0.64,
+    label: "Rituel IV - Debordement",
+    text: "Debordement: divisions rapides, collisions et glitches controles.",
     profile: {
-      targetCells: 20,
-      targetEnergy: 0.82,
-      speed: 1.18,
-      chaos: 0.78,
-      division: 0.98,
-      death: 0.38,
-      collisions: 1.15,
-      consonance: 0.48,
-      reverb: 0.42,
+      targetCells: 18,
+      targetEnergy: 0.8,
+      speed: 1.16,
+      chaos: 0.7,
+      division: 1.08,
+      death: 0.3,
+      collisions: 1.08,
+      consonance: 0.44,
+      reverb: 0.4,
       lowpass: 11200,
     },
   },
   {
-    id: "ritual-extinction",
-    start: 0.78,
-    label: "Rituel V - Extinction",
-    text: "Extinction: la matiere se vide, le souffle reste suspendu.",
+    id: "ritual-total-chaos",
+    start: 0.86,
+    label: "Rituel V - Chaos total",
+    text: "Chaos total: l'organisme atteint sa densite maximale.",
     profile: {
-      targetCells: 3,
-      targetEnergy: 0.12,
-      speed: 0.24,
-      chaos: 0.08,
-      division: 0.01,
-      death: 4.8,
-      collisions: 0.04,
-      consonance: 0.95,
-      reverb: 0.84,
-      lowpass: 3400,
-    },
-  },
-  {
-    id: "ritual-rebirth",
-    start: 0.92,
-    label: "Rituel VI - Renaissance",
-    text: "Renaissance: une nouvelle generation revient, plus douce.",
-    profile: {
-      targetCells: 8,
-      targetEnergy: 0.32,
-      speed: 0.52,
-      chaos: 0.07,
-      division: 0.82,
-      death: 0.68,
-      collisions: 0.16,
-      consonance: 0.96,
-      reverb: 0.8,
-      lowpass: 5600,
+      targetCells: MAX_CELLS,
+      targetEnergy: 0.96,
+      speed: 1.34,
+      chaos: 0.92,
+      division: 1.36,
+      death: 0.16,
+      collisions: 1.38,
+      consonance: 0.28,
+      reverb: 0.34,
+      lowpass: 11800,
     },
   },
 ];
@@ -1137,7 +1119,7 @@ class Conductor {
   }
 
   ritualProgress() {
-    return (this.ritualTime % RITUAL_DURATION) / RITUAL_DURATION;
+    return clamp(this.ritualTime / RITUAL_DURATION, 0, 1);
   }
 
   currentRitualStage() {
@@ -1206,7 +1188,7 @@ class Conductor {
   describe() {
     if (this.mode === "ritual") {
       const stage = this.currentRitualStage();
-      const elapsed = this.ritualTime % RITUAL_DURATION;
+      const elapsed = Math.min(this.ritualTime, RITUAL_DURATION);
       return `${stage.text} ${formatClock(elapsed)} / ${formatClock(RITUAL_DURATION)}.`;
     }
     if (this.metrics.density > 0.76) return "Densite haute: divisions freinees, filtre adouci.";
@@ -1929,59 +1911,72 @@ class Organism {
 
   enterRitualStage(stage) {
     this.lastEventText = `Dernier son: ${stage.label}`;
-    if (stage.id === "ritual-birth") {
+    if (stage.id === "ritual-awakening") {
       this.cells.forEach((cell) => {
-        cell.energy = clamp(cell.energy * 0.5, 0.04, 0.22);
+        cell.energy = clamp(cell.energy * 0.62, 0.04, 0.26);
         cell.modulation *= 0.4;
       });
-    } else if (stage.id === "ritual-growth") {
+    } else if (stage.id === "ritual-proliferation") {
       this.energyField = 0.55;
       this.cells.forEach((cell) => {
-        cell.energy = clamp(cell.energy + this.rng.range(0.08, 0.18), 0, 0.72);
+        cell.energy = clamp(cell.energy + this.rng.range(0.08, 0.2), 0, 0.72);
       });
-    } else if (stage.id === "ritual-mutation") {
+    } else if (stage.id === "ritual-friction") {
+      this.energyField = 0.7;
+      for (let i = 0; i < 2; i += 1) {
+        this.addRitualCell(stage, { family: this.rng.choice(["granular", "pulsing", "spectral"]), energy: this.rng.range(0.42, 0.7), size: this.rng.range(6, 15) });
+      }
+    } else if (stage.id === "ritual-surge") {
       this.energyField = 1;
       for (let i = 0; i < 3; i += 1) {
         this.addRitualCell(stage, { family: this.rng.choice(["unstable", "granular"]), energy: this.rng.range(0.62, 0.92), size: this.rng.range(6, 13) });
       }
-    } else if (stage.id === "ritual-extinction") {
-      this.cells
-        .filter((cell) => cell.state !== "dying")
-        .sort((a, b) => b.energy + b.age * 0.002 - (a.energy + a.age * 0.002))
-        .slice(0, Math.max(0, this.cells.length - 7))
-        .forEach((cell) => cell.die());
-    } else if (stage.id === "ritual-rebirth") {
-      for (let i = 0; i < 3; i += 1) {
-        this.addRitualCell(stage, { family: this.rng.choice(["drone", "spectral", "pulsing"]), energy: this.rng.range(0.16, 0.34), size: this.rng.range(12, 24) });
+    } else if (stage.id === "ritual-total-chaos") {
+      this.energyField = 1.2;
+      const target = Math.min(stage.profile.targetCells, this.quality.maxCells);
+      while (this.cells.length < target) {
+        this.addRitualCell(stage, { family: this.rng.choice(["unstable", "granular", "pulsing"]), energy: this.rng.range(0.72, 1), size: this.rng.range(5, 12) });
       }
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy + this.rng.range(0.12, 0.28), 0, 1.08);
+        cell.modulation = clamp(cell.modulation + this.rng.range(0.18, 0.34), 0, 1);
+      });
     }
   }
 
   applyRitualMotion(stage, dt) {
     const cx = window.innerWidth * 0.5;
     const cy = window.innerHeight * 0.52;
-    if (stage.id === "ritual-organism") {
+    if (stage.id === "ritual-friction") {
       const radius = Math.min(window.innerWidth, window.innerHeight) * 0.22;
       this.cells.forEach((cell, index) => {
-        const angle = index / Math.max(1, this.cells.length) * TWO_PI + this.elapsed * 0.08;
+        const angle = index / Math.max(1, this.cells.length) * TWO_PI + this.elapsed * 0.18;
         const tx = cx + Math.cos(angle) * radius;
         const ty = cy + Math.sin(angle) * radius * 0.62;
         cell.vx += (tx - cell.x) * dt * 0.004;
         cell.vy += (ty - cell.y) * dt * 0.004;
-        cell.energy = lerp(cell.energy, 0.56, dt * 0.045);
+        cell.energy = lerp(cell.energy, 0.62, dt * 0.055);
       });
-    } else if (stage.id === "ritual-mutation") {
-      this.energyField = Math.max(this.energyField, 0.72);
+    } else if (stage.id === "ritual-surge" || stage.id === "ritual-total-chaos") {
+      const chaosForce = stage.id === "ritual-total-chaos" ? 1.2 : 0.72;
+      this.energyField = Math.max(this.energyField, chaosForce);
       this.cells.forEach((cell) => {
-        cell.modulation = clamp(cell.modulation + dt * 0.09, 0, 1);
+        const kick = cell.gene.seedPhase + this.elapsed * (1.4 + cell.gene.instability);
+        cell.vx += Math.sin(kick * 1.7) * dt * chaosForce * 0.46;
+        cell.vy += Math.cos(kick * 1.3) * dt * chaosForce * 0.46;
+        cell.energy = lerp(cell.energy, stage.profile.targetEnergy, dt * 0.07);
+        cell.modulation = clamp(cell.modulation + dt * 0.12 * chaosForce, 0, 1);
       });
-    } else if (stage.id === "ritual-extinction") {
+    } else if (stage.id === "ritual-proliferation") {
       this.cells.forEach((cell) => {
-        cell.energy = clamp(cell.energy - dt * 0.026, 0, 1.08);
-        cell.vx *= 0.982;
-        cell.vy *= 0.982;
+        const dx = cell.x - cx;
+        const dy = cell.y - cy;
+        const d = Math.max(80, Math.hypot(dx, dy));
+        cell.vx += (dx / d) * dt * 0.034;
+        cell.vy += (dy / d) * dt * 0.034;
+        cell.energy = lerp(cell.energy, 0.44, dt * 0.04);
       });
-    } else if (stage.id === "ritual-birth" || stage.id === "ritual-rebirth") {
+    } else if (stage.id === "ritual-awakening") {
       this.cells.forEach((cell) => {
         cell.vx += (cx - cell.x) * dt * 0.0014;
         cell.vy += (cy - cell.y) * dt * 0.0014;
@@ -1991,14 +1986,14 @@ class Organism {
 
   performRitualCue(stage) {
     const target = Math.min(stage.profile.targetCells, this.quality.maxCells);
-    if (stage.id === "ritual-birth" || stage.id === "ritual-rebirth") {
+    if (stage.id === "ritual-awakening") {
       if (this.cells.length < target) {
         this.addRitualCell(stage, { family: this.rng.choice(["drone", "spectral", "pulsing"]), energy: this.rng.range(0.1, 0.34), size: this.rng.range(11, 25) });
       }
       this.ritualState.nextCueAt = this.elapsed + this.rng.range(7, 11);
       return;
     }
-    if (stage.id === "ritual-growth") {
+    if (stage.id === "ritual-proliferation" || stage.id === "ritual-friction") {
       const parent = this.rng.choice(this.cells.filter((cell) => cell.state !== "dying" && cell.energy > 0.32));
       if (parent && this.cells.length < target) {
         parent.energy = clamp(parent.gene.divisionThreshold + 0.08, 0, 1.04);
@@ -2006,40 +2001,26 @@ class Organism {
       } else if (this.cells.length < target) {
         this.addRitualCell(stage, { family: this.rng.choice(["granular", "pulsing", "spectral"]), energy: this.rng.range(0.36, 0.62), size: this.rng.range(7, 16) });
       }
-      this.ritualState.nextCueAt = this.elapsed + this.rng.range(4, 7);
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(stage.id === "ritual-friction" ? 3.8 : 4.6, stage.id === "ritual-friction" ? 6 : 7);
       return;
     }
-    if (stage.id === "ritual-organism") {
-      const pair = this.compatibleRitualPair();
-      if (pair && this.rng.chance(0.45)) this.fuseCells(pair[0], pair[1]);
-      this.ritualState.nextCueAt = this.elapsed + this.rng.range(8, 13);
-      return;
-    }
-    if (stage.id === "ritual-mutation") {
+    if (stage.id === "ritual-surge" || stage.id === "ritual-total-chaos") {
       this.cells.forEach((cell) => {
-        cell.energy = clamp(cell.energy + this.rng.range(0.03, 0.12), 0, 1.08);
-        cell.vx += this.rng.signed(0.65);
-        cell.vy += this.rng.signed(0.65);
+        cell.energy = clamp(cell.energy + this.rng.range(0.05, 0.18), 0, 1.08);
+        cell.vx += this.rng.signed(stage.id === "ritual-total-chaos" ? 0.96 : 0.65);
+        cell.vy += this.rng.signed(stage.id === "ritual-total-chaos" ? 0.96 : 0.65);
       });
       if (this.cells.length < target) {
         this.addRitualCell(stage, { family: this.rng.choice(["unstable", "granular"]), energy: this.rng.range(0.58, 0.9), size: this.rng.range(5, 12) });
       }
-      this.ritualState.nextCueAt = this.elapsed + this.rng.range(3.2, 5.5);
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(stage.id === "ritual-total-chaos" ? 1.8 : 3.2, stage.id === "ritual-total-chaos" ? 3.4 : 5.5);
       return;
-    }
-    if (stage.id === "ritual-extinction") {
-      const living = this.cells.filter((cell) => cell.state !== "dying");
-      if (living.length > target) {
-        const candidate = living.sort((a, b) => b.age + b.energy * 60 - (a.age + a.energy * 60))[0];
-        candidate?.die();
-      }
-      this.ritualState.nextCueAt = this.elapsed + this.rng.range(4.5, 7);
     }
   }
 
   addRitualCell(stage, options = {}) {
     const angle = this.rng.range(0, TWO_PI);
-    const radius = stage.id === "ritual-mutation"
+    const radius = stage.id === "ritual-surge" || stage.id === "ritual-total-chaos"
       ? this.rng.range(80, Math.min(window.innerWidth, window.innerHeight) * 0.44)
       : this.rng.range(12, Math.min(window.innerWidth, window.innerHeight) * 0.18);
     return this.addCell(window.innerWidth * 0.5 + Math.cos(angle) * radius, window.innerHeight * 0.52 + Math.sin(angle) * radius, {
