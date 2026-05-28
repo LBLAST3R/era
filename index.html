@@ -3,36 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cellular Organism — Electroacoustic Living System</title>
+    <title>ERA — Electroacoustic organism</title>
     <meta
       name="description"
-      content="Application interactive d'electroacoustique generative avec p5.js et Web Audio API."
+      content="Installation interactive d'electroacoustique generative avec p5.js et Web Audio API."
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2302070b'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%2378f3a2' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%2354c7ff'/%3E%3C/svg%3E" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="src/styles.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
     <script type="module" src="src/app.js"></script>
   </head>
   <body>
-    <main class="app-shell" aria-label="Cellular Organism generative electroacoustic instrument">
+    <main class="app-shell" aria-label="ERA generative electroacoustic instrument">
       <div id="organism-canvas" class="organism-canvas" aria-hidden="true"></div>
 
-      <header class="brand-panel glass-panel">
+      <header class="brand-panel surface-panel">
+        <div class="era-mark" aria-label="ERA">era</div>
         <p class="system-state" id="phaseLabel">Germination</p>
-        <h1>Cellular Organism</h1>
-        <p>Organisme sonore vivant et autonome.</p>
+        <p>Organisme sonore autonome.</p>
       </header>
 
       <aside class="left-rail">
-        <section class="glass-panel panel-block">
+        <section class="surface-panel panel-block">
           <div class="panel-title">
-            <span class="panel-icon">✳</span>
             <span>Mode</span>
           </div>
           <div class="mode-grid" role="group" aria-label="Modes de l'organisme">
@@ -67,9 +60,8 @@
           </div>
         </section>
 
-        <section class="glass-panel panel-block">
+        <section class="surface-panel panel-block">
           <div class="panel-title">
-            <span class="panel-icon">⌁</span>
             <span>Harmonie</span>
           </div>
           <div class="harmony-switch">
@@ -86,9 +78,8 @@
           </div>
         </section>
 
-        <section class="glass-panel panel-block">
+        <section class="surface-panel panel-block">
           <div class="panel-title">
-            <span class="panel-icon">◌</span>
             <span>Seed</span>
           </div>
           <label class="seed-row" for="seedInput">
@@ -98,9 +89,8 @@
           <button id="randomSeed" class="text-button" type="button">Seed aleatoire reproductible</button>
         </section>
 
-        <section class="glass-panel panel-block hints-panel">
+        <section class="surface-panel panel-block hints-panel">
           <div class="panel-title">
-            <span class="panel-icon">?</span>
             <span>Jardinier sonore</span>
           </div>
           <dl>
@@ -115,9 +105,8 @@
       </aside>
 
       <aside class="right-rail">
-        <section class="glass-panel panel-block conductor-panel">
+        <section class="surface-panel panel-block conductor-panel">
           <div class="panel-title">
-            <span class="panel-icon">∿</span>
             <span>Conductor</span>
           </div>
           <div class="metric-list">
@@ -150,9 +139,8 @@
           <p id="conductorText" class="conductor-text">Respiration initiale.</p>
         </section>
 
-        <section class="glass-panel panel-block audio-panel">
+        <section class="surface-panel panel-block audio-panel">
           <div class="panel-title">
-            <span class="panel-icon">∿</span>
             <span>Audio</span>
           </div>
           <button id="startAudio" class="primary-action" type="button">
@@ -170,10 +158,9 @@
           </label>
         </section>
 
-        <section class="glass-panel panel-block export-panel">
+        <section class="surface-panel panel-block export-panel">
           <div class="panel-title">
-            <span class="panel-icon">⇩</span>
-            <span>Export / Save / Load</span>
+            <span>Export</span>
           </div>
           <div class="export-grid">
             <button id="exportWav" type="button">Export WAV</button>
@@ -187,12 +174,13 @@
         </section>
       </aside>
 
-      <footer class="status-strip glass-panel">
+      <footer class="status-strip surface-panel">
         <span id="cellCount">0 cellules</span>
         <span id="activeVoices">0 voix</span>
         <span id="autoState">Auto-evolution active</span>
+        <span id="performanceState">Performance max</span>
         <span id="lastEvent">Dernier son: respiration initiale</span>
-        <span>Touches: F plein ecran · H interface · C/S/X modes · R renaissance · M mutation · A auto</span>
+        <span>F plein ecran · H interface · C/S/X modes · R renaissance · M mutation · A auto</span>
       </footer>
     </main>
   </body>

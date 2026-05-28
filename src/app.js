@@ -1,7 +1,7 @@
-const MAX_CELLS = 72;
-const MAX_AUDIO_VOICES = 34;
+const MAX_CELLS = 24;
+const MAX_AUDIO_VOICES = 8;
 const TWO_PI = Math.PI * 2;
-const GRID_SIZE = 150;
+const GRID_SIZE = 180;
 
 const HARMONIC_MODES = [
   {
@@ -39,47 +39,47 @@ const HARMONIC_MODES = [
 
 const MODE_PROFILES = {
   calm: {
-    targetCells: 16,
+    targetCells: 9,
     targetEnergy: 0.32,
     speed: 0.55,
     chaos: 0.06,
-    division: 0.2,
+    division: 0.12,
     death: 1.25,
-    collisions: 0.35,
+    collisions: 0.25,
     consonance: 0.92,
     reverb: 0.72,
     lowpass: 6400,
   },
   stable: {
-    targetCells: 30,
+    targetCells: 14,
     targetEnergy: 0.54,
     speed: 0.85,
     chaos: 0.18,
-    division: 0.52,
+    division: 0.34,
     death: 0.9,
-    collisions: 0.68,
+    collisions: 0.46,
     consonance: 0.78,
     reverb: 0.56,
     lowpass: 8800,
   },
   chaos: {
-    targetCells: 52,
+    targetCells: 18,
     targetEnergy: 0.78,
-    speed: 1.35,
+    speed: 1.08,
     chaos: 0.68,
-    division: 1.05,
+    division: 0.62,
     death: 0.72,
-    collisions: 1.35,
+    collisions: 0.9,
     consonance: 0.46,
     reverb: 0.4,
     lowpass: 11200,
   },
   ritual: {
-    targetCells: 24,
+    targetCells: 14,
     targetEnergy: 0.42,
     speed: 0.8,
     chaos: 0.2,
-    division: 0.55,
+    division: 0.35,
     death: 0.95,
     collisions: 0.72,
     consonance: 0.75,
@@ -167,11 +167,16 @@ function qualityProfile() {
   const narrow = window.innerWidth < 760;
   return {
     pixelDensity: 1,
-    particles: narrow ? 52 : area > 1800000 ? 78 : 96,
-    flowLines: narrow ? 4 : area > 1800000 ? 7 : 9,
-    visualDetail: narrow ? 0.52 : area > 1800000 ? 0.6 : 0.72,
-    maxCells: narrow ? 38 : area > 1800000 ? 54 : 62,
-    maxVoices: narrow ? 18 : area > 1800000 ? 26 : MAX_AUDIO_VOICES,
+    particles: narrow ? 6 : area > 1800000 ? 7 : 8,
+    flowLines: 0,
+    visualDetail: narrow ? 0.14 : area > 1800000 ? 0.18 : 0.22,
+    maxCells: narrow ? 14 : area > 1800000 ? 18 : 20,
+    maxVoices: narrow ? 5 : area > 1800000 ? 6 : 7,
+    drawParticlesEvery: 5,
+    drawConnectionsEvery: 6,
+    drawEventsEvery: 2,
+    audioSyncEvery: 3,
+    label: "Performance max",
   };
 }
 
@@ -186,7 +191,7 @@ function hashSeed(seed) {
 
 class SeededRandom {
   constructor(seed) {
-    this.seed = seed || "cellular-organism";
+    this.seed = seed || "era";
     this.state = hashSeed(this.seed) || 1;
   }
 
@@ -274,7 +279,7 @@ class Recorder {
     const wav = this.encodeWav(this.left, this.right, this.sampleRate);
     this.lastBlob = new Blob([wav], { type: "audio/wav" });
     if (download) {
-      downloadBlob(this.lastBlob, `cellular-organism-${Date.now()}.wav`);
+      downloadBlob(this.lastBlob, `era-${Date.now()}.wav`);
     }
     return this.lastBlob;
   }
@@ -289,7 +294,7 @@ class Recorder {
       return this.stop(true);
     }
     if (!this.lastBlob) return null;
-    downloadBlob(this.lastBlob, `cellular-organism-${Date.now()}.wav`);
+    downloadBlob(this.lastBlob, `era-${Date.now()}.wav`);
     return this.lastBlob;
   }
 
@@ -373,7 +378,7 @@ class VideoRecorder {
     };
     this.recorder.onstop = () => {
       const blob = new Blob(this.chunks, { type: this.mimeType || "video/webm" });
-      downloadBlob(blob, `cellular-organism-video-${Date.now()}.webm`);
+      downloadBlob(blob, `era-video-${Date.now()}.webm`);
       this.stopCanvasTracks();
     };
     this.recorder.start(250);
@@ -624,13 +629,10 @@ class AudioEngine {
 
     if (cell.family === "drone") {
       addOsc("sine", 1, 0.82);
-      addOsc("triangle", 2, 0.12 + cell.gene.timbreTilt * 0.08, -4);
-      addOsc("sine", cell.gene.formantRatio, 0.04 + cell.gene.eventColor * 0.05, 7);
+      addOsc("triangle", 2, 0.1 + cell.gene.timbreTilt * 0.05, -4);
     } else if (cell.family === "spectral") {
       addOsc("sine", 1, 0.56);
-      addOsc("sine", 1.5, 0.18, 3);
-      addOsc("sine", 2, 0.13, -5);
-      addOsc("sine", cell.gene.formantRatio + 1.2, 0.06 + cell.gene.timbreTilt * 0.04, 9);
+      addOsc("sine", 2, 0.16, -5);
     } else if (cell.family === "pulsing") {
       addOsc("triangle", 1, 0.66);
       addOsc("sine", 0.5, 0.22 + cell.gene.eventColor * 0.06);
@@ -651,16 +653,18 @@ class AudioEngine {
       addOsc("sine", 1, 0.18);
     }
 
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.type = "sine";
-    lfo.frequency.value = cell.gene.vibratoRate;
-    lfoGain.gain.value = cell.frequency * 0.006;
-    lfo.connect(lfoGain);
-    voice.oscillators.forEach(({ osc }) => lfoGain.connect(osc.frequency));
-    lfo.start();
-    voice.lfos.push(lfo);
-    voice.lfoGain = lfoGain;
+    if (cell.family !== "drone" && cell.family !== "granular") {
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = "sine";
+      lfo.frequency.value = cell.gene.vibratoRate;
+      lfoGain.gain.value = cell.frequency * 0.004;
+      lfo.connect(lfoGain);
+      voice.oscillators.forEach(({ osc }) => lfoGain.connect(osc.frequency));
+      lfo.start();
+      voice.lfos.push(lfo);
+      voice.lfoGain = lfoGain;
+    }
     this.voiceMap.set(cell.id, voice);
   }
 
@@ -1261,51 +1265,24 @@ class Cell {
   draw(p) {
     if (this.state === "dead") return;
     const pulse = Math.sin(this.phase * 1.6) * 0.5 + 0.5;
-    const energyGlow = lerp(0.42, 1.22, clamp(this.energy, 0, 1));
     const visualSize = this.size * (1 + pulse * 0.08 + this.energy * 0.16);
     const alpha = this.alpha * (this.state === "dying" ? clamp(this.energy * 1.8, 0, 1) : 1);
     const hue = (this.hue + this.energy * 22 + this.age * 0.25) % 360;
-    const detail = this.organism.quality.visualDetail;
 
     p.push();
     p.noStroke();
-    const ctx = p.drawingContext;
-    ctx.save();
-    ctx.shadowColor = `hsla(${hue}, ${this.saturation}%, ${this.lightness}%, ${0.55 * alpha})`;
-    ctx.shadowBlur = 24 * energyGlow * detail;
-    const gradient = ctx.createRadialGradient(this.x, this.y, visualSize * 0.05, this.x, this.y, visualSize * (2 + detail));
-    gradient.addColorStop(0, `hsla(${hue}, 100%, 88%, ${0.95 * alpha})`);
-    gradient.addColorStop(0.16, `hsla(${hue}, ${this.saturation}%, ${this.lightness}%, ${0.34 * alpha})`);
-    gradient.addColorStop(0.46, `hsla(${hue}, ${this.saturation}%, ${this.lightness}%, ${0.1 * alpha})`);
-    gradient.addColorStop(1, `hsla(${hue}, ${this.saturation}%, ${this.lightness}%, 0)`);
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, visualSize * (2.1 + detail), 0, TWO_PI);
-    ctx.fill();
-    ctx.restore();
-
-    p.fill(hue, this.saturation, clamp(this.lightness + 8, 0, 82), 0.3 * alpha);
-    p.ellipse(this.x, this.y, visualSize * 1.6, visualSize * 1.32);
-    p.stroke(hue, 100, 76, 0.42 * alpha);
-    p.strokeWeight(1.1);
+    p.fill(hue, this.saturation, clamp(this.lightness + 4, 0, 78), 0.13 * alpha);
+    p.circle(this.x, this.y, visualSize * 2.35);
+    p.fill(hue, this.saturation, clamp(this.lightness + 8, 0, 82), 0.5 * alpha);
+    p.circle(this.x, this.y, visualSize * 1.04);
+    p.stroke(hue, 72, 72, 0.34 * alpha);
+    p.strokeWeight(0.9);
     p.noFill();
-    p.ellipse(this.x, this.y, visualSize * 1.65, visualSize * 1.36);
+    p.circle(this.x, this.y, visualSize * 1.52);
 
     p.noStroke();
-    p.fill(hue, 96, 78, 0.9 * alpha);
+    p.fill(hue, 74, 76, 0.82 * alpha);
     p.circle(this.x, this.y, Math.max(2.4, visualSize * 0.18));
-    p.fill(0, 0, 100, 0.52 * alpha);
-    p.circle(this.x, this.y, Math.max(1.4, visualSize * 0.08));
-
-    const satellites = Math.max(2, Math.round((this.family === "spectral" ? 5 : this.family === "granular" ? 6 : 3) * detail));
-    for (let i = 0; i < satellites; i += 1) {
-      const angle = this.phase * (0.25 + i * 0.04) + (i / satellites) * TWO_PI;
-      const radius = visualSize * (0.78 + (i % 3) * 0.28);
-      const sx = this.x + Math.cos(angle) * radius;
-      const sy = this.y + Math.sin(angle * 1.17) * radius * 0.72;
-      p.fill((hue + i * 18) % 360, 100, 78, 0.46 * alpha);
-      p.circle(sx, sy, 1.4 + this.energy * 2.6);
-    }
 
     if (this.solo) {
       p.stroke(185, 100, 88, 0.75 * alpha);
@@ -1322,6 +1299,7 @@ class Cell {
     const code = FAMILY_AUDIO_SIGNATURES[this.family]?.code || "?";
     const eventAge = this.organism.elapsed - this.lastEventAt;
     const eventPulse = eventAge < 1.25 ? (1 - eventAge / 1.25) * this.eventIntensity : 0;
+    if (!this.solo && eventPulse <= 0.03) return;
     p.push();
     p.noFill();
     p.stroke(hue, 100, 82, (0.16 + eventPulse * 0.55) * alpha);
@@ -1329,22 +1307,22 @@ class Cell {
     if (this.family === "drone") {
       p.ellipse(this.x, this.y, visualSize * 2.55, visualSize * 2.1);
     } else if (this.family === "granular") {
-      for (let i = 0; i < 7; i += 1) {
-        const a = this.phase + i * TWO_PI / 7;
+      for (let i = 0; i < 4; i += 1) {
+        const a = this.phase + i * TWO_PI / 4;
         p.circle(this.x + Math.cos(a) * visualSize * 1.1, this.y + Math.sin(a) * visualSize * 0.9, 2.2 + eventPulse * 3);
       }
     } else if (this.family === "pulsing") {
       p.circle(this.x, this.y, visualSize * (2.05 + Math.sin(this.phase * 2.6) * 0.16));
       p.circle(this.x, this.y, visualSize * 1.18);
     } else if (this.family === "spectral") {
-      for (let i = 0; i < 6; i += 1) {
-        const a = this.phase * 0.18 + i * TWO_PI / 6;
+      for (let i = 0; i < 4; i += 1) {
+        const a = this.phase * 0.18 + i * TWO_PI / 4;
         p.line(this.x, this.y, this.x + Math.cos(a) * visualSize * 1.65, this.y + Math.sin(a) * visualSize * 1.65);
       }
     } else if (this.family === "unstable") {
       p.beginShape();
-      for (let i = 0; i < 9; i += 1) {
-        const a = this.phase * 0.45 + i * TWO_PI / 9;
+      for (let i = 0; i < 6; i += 1) {
+        const a = this.phase * 0.45 + i * TWO_PI / 6;
         const r = visualSize * (1.1 + ((i % 2) ? 0.44 : 0.08) + eventPulse * 0.42);
         p.vertex(this.x + Math.cos(a) * r, this.y + Math.sin(a) * r);
       }
@@ -1423,6 +1401,7 @@ class Organism {
     this.conductor = new Conductor();
     this.elapsed = 0;
     this.frameIndex = 0;
+    this.lastAudioFrame = 0;
     this.lastTime = performance.now();
     this.paused = false;
     this.autoEvolution = true;
@@ -1453,6 +1432,7 @@ class Organism {
     this.particles = this.createParticles();
     this.elapsed = 0;
     this.frameIndex = 0;
+    this.lastAudioFrame = 0;
     this.recentCollisions = 0;
     this.energyField = 0;
     this.events = [];
@@ -1463,7 +1443,7 @@ class Organism {
     this.conductor = new Conductor();
     this.conductor.setMode(options.mode || this.mode || "calm");
     this.mode = this.conductor.mode;
-    const initialCount = options.initialCount ?? (this.mode === "chaos" ? 30 : this.mode === "stable" ? 24 : 18);
+    const initialCount = options.initialCount ?? Math.min(this.quality.maxCells, this.mode === "chaos" ? 14 : this.mode === "stable" ? 12 : 9);
     for (let i = 0; i < initialCount; i += 1) {
       this.addCell(undefined, undefined, {
         energy: this.rng.range(0.18, 0.58),
@@ -1501,7 +1481,10 @@ class Organism {
     this.buildSpatialIndex(activeCells);
     this.handleInteractions(dt, activeCells);
     this.cells = this.cells.filter((cell) => cell.state !== "dead");
-    this.audio.syncCells(this.cells, this.conductor);
+    if (this.frameIndex - this.lastAudioFrame >= this.quality.audioSyncEvery) {
+      this.audio.syncCells(this.cells, this.conductor);
+      this.lastAudioFrame = this.frameIndex;
+    }
   }
 
   drawOnly() {
@@ -1512,10 +1495,10 @@ class Organism {
   }
 
   draw(p) {
-    if (this.frameIndex % 2 === 0) this.drawParticles(p);
-    if (this.frameIndex % 3 === 0) this.drawFlowField(p);
-    if (this.frameIndex % 2 === 0) this.drawConnections(p);
-    this.drawEvents(p);
+    if (this.frameIndex % this.quality.drawParticlesEvery === 0) this.drawParticles(p);
+    if (this.quality.flowLines > 0 && this.frameIndex % 8 === 0) this.drawFlowField(p);
+    if (this.frameIndex % this.quality.drawConnectionsEvery === 0) this.drawConnections(p);
+    if (this.frameIndex % this.quality.drawEventsEvery === 0) this.drawEvents(p);
     this.cells.forEach((cell) => cell.draw(p));
     this.drawMouseField(p);
   }
@@ -1624,8 +1607,8 @@ class Organism {
         p.stroke(hue, 92, 82, alpha * 0.72);
         p.circle(event.x, event.y, radius);
         p.beginShape();
-        for (let i = 0; i < 28; i += 1) {
-          const spin = i / 28;
+        for (let i = 0; i < 14; i += 1) {
+          const spin = i / 14;
           const angle = spin * TWO_PI * 2.2 + t * 5;
           const r = radius * spin * 0.55;
           p.curveVertex(event.x + Math.cos(angle) * r, event.y + Math.sin(angle) * r);
@@ -1658,7 +1641,7 @@ class Organism {
       }
     });
     p.pop();
-    this.events = alive.slice(-70);
+    this.events = alive.slice(-28);
   }
 
   buildSpatialIndex(cells = this.cells) {
@@ -1750,7 +1733,7 @@ class Organism {
       intensity,
     };
     this.events.push(event);
-    if (this.events.length > 70) this.events.shift();
+    if (this.events.length > 28) this.events.shift();
     cells.forEach((cell) => {
       if (cell?.markEvent) cell.markEvent(type, intensity, this.elapsed);
     });
@@ -1760,9 +1743,9 @@ class Organism {
 
   autoManagePopulation(dt) {
     if (!this.autoEvolution) return;
-    const target = this.conductor.controls.targetCells;
+    const target = Math.min(this.conductor.controls.targetCells, this.quality.maxCells);
     const shortage = target - this.cells.length;
-    if (shortage > 0 && this.rng.chance(dt * 0.22 * shortage)) {
+    if (shortage > 0 && this.rng.chance(dt * 0.1 * shortage)) {
       const edge = this.rng.int(0, 3);
       const x = edge === 0 ? this.rng.range(60, window.innerWidth - 60) : edge === 1 ? -12 : edge === 2 ? window.innerWidth + 12 : this.rng.range(60, window.innerWidth - 60);
       const y = edge === 3 ? window.innerHeight + 12 : edge === 0 ? -12 : this.rng.range(60, window.innerHeight - 60);
@@ -2011,7 +1994,7 @@ class Organism {
 
   serialize() {
     return {
-      title: "Cellular Organism",
+      title: "ERA",
       version: 1,
       seed: this.seed,
       mode: this.mode,
@@ -2115,7 +2098,7 @@ class InteractionManager {
     });
     this.ui.prevHarmony.addEventListener("click", () => this.organism.setHarmony(this.organism.harmonicIndex - 1));
     this.ui.nextHarmony.addEventListener("click", () => this.organism.setHarmony(this.organism.harmonicIndex + 1));
-    this.ui.applySeed.addEventListener("click", () => this.organism.reset(this.ui.seedInput.value.trim() || "cellular-organism"));
+    this.ui.applySeed.addEventListener("click", () => this.organism.reset(this.ui.seedInput.value.trim() || "era"));
     this.ui.randomSeed.addEventListener("click", () => {
       const fragments = ["marais", "plasma", "lichen", "corail", "brume", "ambre", "abyssal"];
       const seed = `${fragments[Math.floor(Math.random() * fragments.length)]}-${Math.random().toString(16).slice(2, 8)}`;
@@ -2160,13 +2143,13 @@ class InteractionManager {
     this.ui.fullscreenMode.addEventListener("click", () => this.toggleFullscreenInstallation());
     this.ui.saveState.addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(this.organism.serialize(), null, 2)], { type: "application/json" });
-      downloadBlob(blob, `cellular-organism-state-${Date.now()}.json`);
+      downloadBlob(blob, `era-state-${Date.now()}.json`);
     });
     this.ui.loadState.addEventListener("click", () => this.ui.stateFile.click());
     this.ui.stateFile.addEventListener("change", (event) => this.loadStateFile(event));
     this.ui.snapshotPng.addEventListener("click", () => {
-      if (window.__cellularP5) {
-        window.__cellularP5.saveCanvas("cellular-organism-snapshot", "png");
+      if (window.__eraP5) {
+        window.__eraP5.saveCanvas("era-snapshot", "png");
       }
     });
     this.ui.masterVolume.addEventListener("input", () => {
@@ -2358,6 +2341,7 @@ function collectUi() {
     cellCount: document.getElementById("cellCount"),
     activeVoices: document.getElementById("activeVoices"),
     autoState: document.getElementById("autoState"),
+    performanceState: document.getElementById("performanceState"),
     lastEvent: document.getElementById("lastEvent"),
   };
 }
@@ -2378,6 +2362,7 @@ function updateUi(organism, audio, ui) {
   ui.cellCount.textContent = `${organism.cells.length} cellules`;
   ui.activeVoices.textContent = `${audio.voiceMap.size} voix`;
   ui.autoState.textContent = organism.autoEvolution ? "Auto-evolution active" : "Auto-evolution suspendue";
+  ui.performanceState.textContent = organism.quality.label;
   ui.lastEvent.textContent = organism.lastEventText;
   const elapsed = audio.recorder.elapsed(audio.context);
   if (audio.recorder.isRecording) {
@@ -2401,19 +2386,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
       canvas.parent("organism-canvas");
       p.pixelDensity(qualityProfile().pixelDensity);
-      p.frameRate(30);
+      p.frameRate(15);
       p.colorMode(p.HSL, 360, 100, 100, 1);
       p.noiseSeed(hashSeed(ui.seedInput.value));
       organism = new Organism(p, audio, ui);
       interactions = new InteractionManager(organism, audio, ui);
       interactions.attachCanvas(canvas.elt);
-      window.__cellularP5 = p;
+      window.__eraP5 = p;
+      window.__eraOrganism = organism;
+      window.__eraAudio = audio;
     };
 
     p.draw = () => {
-      p.background(2, 8, 12, 0.36);
+      p.background(3, 4, 3, 0.46);
       p.noStroke();
-      p.fill(198, 70, 6, 0.035);
+      p.fill(68, 18, 6, 0.022);
       p.rect(0, 0, p.width, p.height);
       organism.update();
       organism.draw(p);

@@ -1,10 +1,12 @@
-# Cellular Organism
+# ERA
 
-Application interactive d'electroacoustique generative vivante.
+Installation interactive d'electroacoustique generative vivante.
 
 Le projet utilise `p5.js` pour le visuel et la Web Audio API pour le moteur sonore. Chaque cellule est une voix autonome avec position, vitesse, taille, energie, age, et gene sonore. Le `Conductor` ajuste la densite, le chaos, les filtres, la reverberation et les probabilites biologiques pour garder une musique organique et ecoutable.
 
 Chaque cellule possede aussi une signature sonore et visuelle reconnaissable. Les familles `drone`, `granular`, `pulsing`, `spectral` et `unstable` ont des formes, des halos, des attaques et des accents differents. Les collisions, divisions, fusions et morts affichent des anneaux, lignes et libelles (`TOUCH`, `SPLIT`, `FUSE`, `FADE`) qui indiquent les cellules sources du son dans la barre d'etat.
+
+La version actuelle charge par defaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour eviter de saturer la machine.
 
 ## Lancer
 
