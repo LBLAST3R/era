@@ -8,6 +8,8 @@ Chaque cellule possede aussi une signature sonore et visuelle reconnaissable. Le
 
 La version actuelle charge par defaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour eviter de saturer la machine.
 
+Le mode `Rituel` redemarre l'organisme depuis la seed active et lance une forme narrative de 8 minutes : naissance, croissance, organisation, mutation, extinction puis renaissance. Ce mode force doucement certaines divisions, fusions, morts et renaissances pour que la piece ressemble a une vraie histoire plutot qu'a une simple ambiance continue.
+
 ## Lancer
 
 ```bash
@@ -26,6 +28,7 @@ Le son demarre uniquement apres un clic sur `Start Audio`, conformement aux regl
 - `Clic droit` : faire mourir une cellule progressivement.
 - `Molette` : modifier l'energie globale.
 - `C`, `S`, `X` : modes calme, stable, chaos.
+- `Rituel` : redemarre la seed active et lance le cycle narratif de 8 minutes.
 - `R` : renaissance depuis la seed.
 - `M` : mutation.
 - `A` : activer/desactiver l'auto-evolution.

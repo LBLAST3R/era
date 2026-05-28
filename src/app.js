@@ -119,6 +119,8 @@ const EVENT_LABELS = {
   death: "FADE",
 };
 
+const RITUAL_DURATION = 480;
+
 const PHASES = [
   { id: "germination", label: "Bionum" },
   { id: "growth", label: "Croissance" },
@@ -126,6 +128,117 @@ const PHASES = [
   { id: "mutation", label: "Mutation" },
   { id: "extinction", label: "Extinction" },
   { id: "rebirth", label: "Renaissance" },
+];
+
+const RITUAL_STAGES = [
+  {
+    id: "ritual-birth",
+    start: 0,
+    label: "Rituel I - Naissance",
+    text: "Naissance: quelques voix profondes sortent du silence.",
+    profile: {
+      targetCells: 4,
+      targetEnergy: 0.18,
+      speed: 0.36,
+      chaos: 0.03,
+      division: 0.04,
+      death: 0.45,
+      collisions: 0.1,
+      consonance: 0.97,
+      reverb: 0.82,
+      lowpass: 4200,
+    },
+  },
+  {
+    id: "ritual-growth",
+    start: 0.16,
+    label: "Rituel II - Croissance",
+    text: "Croissance: la colonie se multiplie en harmonies proches.",
+    profile: {
+      targetCells: 12,
+      targetEnergy: 0.52,
+      speed: 0.72,
+      chaos: 0.12,
+      division: 0.86,
+      death: 0.55,
+      collisions: 0.34,
+      consonance: 0.88,
+      reverb: 0.66,
+      lowpass: 7200,
+    },
+  },
+  {
+    id: "ritual-organism",
+    start: 0.36,
+    label: "Rituel III - Organisme",
+    text: "Organisation: les cellules cherchent un accord commun.",
+    profile: {
+      targetCells: 16,
+      targetEnergy: 0.56,
+      speed: 0.82,
+      chaos: 0.16,
+      division: 0.22,
+      death: 0.52,
+      collisions: 0.3,
+      consonance: 0.92,
+      reverb: 0.58,
+      lowpass: 8600,
+    },
+  },
+  {
+    id: "ritual-mutation",
+    start: 0.58,
+    label: "Rituel IV - Mutation",
+    text: "Mutation: tension, frottements et accidents controles.",
+    profile: {
+      targetCells: 20,
+      targetEnergy: 0.82,
+      speed: 1.18,
+      chaos: 0.78,
+      division: 0.98,
+      death: 0.38,
+      collisions: 1.15,
+      consonance: 0.48,
+      reverb: 0.42,
+      lowpass: 11200,
+    },
+  },
+  {
+    id: "ritual-extinction",
+    start: 0.78,
+    label: "Rituel V - Extinction",
+    text: "Extinction: la matiere se vide, le souffle reste suspendu.",
+    profile: {
+      targetCells: 3,
+      targetEnergy: 0.12,
+      speed: 0.24,
+      chaos: 0.08,
+      division: 0.01,
+      death: 4.8,
+      collisions: 0.04,
+      consonance: 0.95,
+      reverb: 0.84,
+      lowpass: 3400,
+    },
+  },
+  {
+    id: "ritual-rebirth",
+    start: 0.92,
+    label: "Rituel VI - Renaissance",
+    text: "Renaissance: une nouvelle generation revient, plus douce.",
+    profile: {
+      targetCells: 8,
+      targetEnergy: 0.32,
+      speed: 0.52,
+      chaos: 0.07,
+      division: 0.82,
+      death: 0.68,
+      collisions: 0.16,
+      consonance: 0.96,
+      reverb: 0.8,
+      lowpass: 5600,
+    },
+  },
 ];
 
 function clamp(value, min, max) {
@@ -141,10 +254,22 @@ function mapRange(value, inMin, inMax, outMin, outMax) {
   return lerp(outMin, outMax, t);
 }
 
+function smoothstep(t) {
+  const x = clamp(t, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
 function distance(a, b) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.hypot(dx, dy);
+}
+
+function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(total / 60).toString().padStart(2, "0");
+  const secs = (total % 60).toString().padStart(2, "0");
+  return `${minutes}:${secs}`;
 }
 
 function downloadBlob(blob, filename) {
@@ -950,6 +1075,7 @@ class Conductor {
     this.phase = PHASES[0];
     this.phaseTime = 0;
     this.ritualTime = 0;
+    this.ritualStageIndex = 0;
     this.metrics = {
       density: 0,
       energy: 0,
@@ -971,6 +1097,7 @@ class Conductor {
     this.mode = mode;
     if (mode === "ritual") {
       this.ritualTime = 0;
+      this.ritualStageIndex = 0;
     }
   }
 
@@ -978,6 +1105,7 @@ class Conductor {
     this.phaseTime += dt;
     if (this.mode === "ritual") {
       this.ritualTime += dt;
+      this.ritualStageIndex = this.currentRitualStage().index;
     }
     this.measure(organism);
     const base = this.profileForMode();
@@ -1002,13 +1130,30 @@ class Conductor {
 
   profileForMode() {
     if (this.mode !== "ritual") return MODE_PROFILES[this.mode];
-    const cycle = (this.ritualTime % 420) / 420;
-    if (cycle < 0.16) return this.mixProfiles(MODE_PROFILES.calm, MODE_PROFILES.stable, cycle / 0.16);
-    if (cycle < 0.38) return this.mixProfiles(MODE_PROFILES.stable, { ...MODE_PROFILES.stable, targetCells: 42, targetEnergy: 0.62 }, (cycle - 0.16) / 0.22);
-    if (cycle < 0.58) return { ...MODE_PROFILES.stable, targetCells: 36, targetEnergy: 0.58, reverb: 0.62 };
-    if (cycle < 0.78) return this.mixProfiles(MODE_PROFILES.stable, MODE_PROFILES.chaos, (cycle - 0.58) / 0.2);
-    if (cycle < 0.91) return { ...MODE_PROFILES.calm, targetCells: 10, targetEnergy: 0.16, death: 2.2, reverb: 0.82 };
-    return { ...MODE_PROFILES.calm, targetCells: 18, targetEnergy: 0.34, division: 0.82, reverb: 0.74 };
+    const stage = this.currentRitualStage();
+    const nextStage = RITUAL_STAGES[Math.min(stage.index + 1, RITUAL_STAGES.length - 1)];
+    const blend = stage.id === nextStage.id ? 0 : smoothstep(mapRange(stage.localProgress, 0.68, 1, 0, 1));
+    return this.mixProfiles(stage.profile, nextStage.profile, blend);
+  }
+
+  ritualProgress() {
+    return (this.ritualTime % RITUAL_DURATION) / RITUAL_DURATION;
+  }
+
+  currentRitualStage() {
+    const progress = this.ritualProgress();
+    let index = 0;
+    for (let i = 0; i < RITUAL_STAGES.length; i += 1) {
+      if (progress >= RITUAL_STAGES[i].start) index = i;
+    }
+    const stage = RITUAL_STAGES[index];
+    const next = RITUAL_STAGES[index + 1];
+    const end = next ? next.start : 1;
+    return {
+      ...stage,
+      index,
+      localProgress: mapRange(progress, stage.start, end, 0, 1),
+    };
   }
 
   mixProfiles(a, b, t) {
@@ -1046,13 +1191,8 @@ class Conductor {
 
   choosePhase(organism) {
     if (this.mode === "ritual") {
-      const cycle = (this.ritualTime % 420) / 420;
-      if (cycle < 0.16) this.phase = PHASES[0];
-      else if (cycle < 0.38) this.phase = PHASES[1];
-      else if (cycle < 0.58) this.phase = PHASES[2];
-      else if (cycle < 0.78) this.phase = PHASES[3];
-      else if (cycle < 0.91) this.phase = PHASES[4];
-      else this.phase = PHASES[5];
+      const stage = this.currentRitualStage();
+      this.phase = { id: stage.id, label: stage.label };
       return;
     }
     if (organism.cells.length < 12) this.phase = PHASES[0];
@@ -1064,6 +1204,11 @@ class Conductor {
   }
 
   describe() {
+    if (this.mode === "ritual") {
+      const stage = this.currentRitualStage();
+      const elapsed = this.ritualTime % RITUAL_DURATION;
+      return `${stage.text} ${formatClock(elapsed)} / ${formatClock(RITUAL_DURATION)}.`;
+    }
     if (this.metrics.density > 0.76) return "Densite haute: divisions freinees, filtre adouci.";
     if (this.metrics.dissonance > 0.58) return "Tension detectee: consonance et volume corriges.";
     if (this.phase.id === "mutation") return "Mutation active: accidents courts sous controle.";
@@ -1418,6 +1563,10 @@ class Organism {
       dragging: false,
       radius: 170,
     };
+    this.ritualState = {
+      stageId: null,
+      nextCueAt: 0,
+    };
     this.quality = qualityProfile();
     this.reset(this.seed);
   }
@@ -1433,23 +1582,34 @@ class Organism {
     this.elapsed = 0;
     this.frameIndex = 0;
     this.lastAudioFrame = 0;
+    this.lastTime = performance.now();
     this.recentCollisions = 0;
     this.energyField = 0;
     this.events = [];
     this.lastEventText = "Dernier son: respiration initiale";
     this.soloId = null;
+    this.ritualState = {
+      stageId: null,
+      nextCueAt: 0,
+    };
     this.baseFrequency = [41.2, 48.99, 55, 65.41, 73.42][this.rng.int(0, 4)];
     this.harmonicIndex = options.harmonicIndex ?? this.rng.int(0, HARMONIC_MODES.length - 1);
     this.conductor = new Conductor();
     this.conductor.setMode(options.mode || this.mode || "calm");
     this.mode = this.conductor.mode;
-    const initialCount = options.initialCount ?? Math.min(this.quality.maxCells, this.mode === "chaos" ? 14 : this.mode === "stable" ? 12 : 9);
+    const ritualBirth = this.mode === "ritual";
+    const initialCount = options.initialCount ?? Math.min(this.quality.maxCells, ritualBirth ? 4 : this.mode === "chaos" ? 14 : this.mode === "stable" ? 12 : 9);
     for (let i = 0; i < initialCount; i += 1) {
       this.addCell(undefined, undefined, {
-        energy: this.rng.range(0.18, 0.58),
-        size: this.rng.range(8, this.mode === "calm" ? 28 : 22),
-        alpha: this.rng.range(0.1, 0.8),
+        energy: this.rng.range(ritualBirth ? 0.08 : 0.18, ritualBirth ? 0.28 : 0.58),
+        size: this.rng.range(ritualBirth ? 13 : 8, this.mode === "calm" || ritualBirth ? 28 : 22),
+        family: ritualBirth ? this.rng.choice(["drone", "spectral", "pulsing"]) : undefined,
+        alpha: this.rng.range(ritualBirth ? 0.02 : 0.1, ritualBirth ? 0.32 : 0.8),
       });
+    }
+    if (ritualBirth) {
+      this.autoEvolution = true;
+      this.lastEventText = "Dernier son: RITUEL seed remise a zero";
     }
     this.audio.removeAllVoices();
     this.updateHarmonyUi();
@@ -1480,6 +1640,7 @@ class Organism {
     activeCells.forEach((cell) => cell.update(dt, this.getNearbyCells(cell, 260)));
     this.buildSpatialIndex(activeCells);
     this.handleInteractions(dt, activeCells);
+    if (this.mode === "ritual") this.updateRitualNarrative(dt);
     this.cells = this.cells.filter((cell) => cell.state !== "dead");
     if (this.frameIndex - this.lastAudioFrame >= this.quality.audioSyncEvery) {
       this.audio.syncCells(this.cells, this.conductor);
@@ -1734,20 +1895,171 @@ class Organism {
     if (!this.autoEvolution) return;
     const target = Math.min(this.conductor.controls.targetCells, this.quality.maxCells);
     const shortage = target - this.cells.length;
-    if (shortage > 0 && this.rng.chance(dt * 0.1 * shortage)) {
+    const birthRate = this.mode === "ritual" ? 0.2 : 0.1;
+    if (shortage > 0 && this.rng.chance(dt * birthRate * shortage)) {
       const edge = this.rng.int(0, 3);
       const x = edge === 0 ? this.rng.range(60, window.innerWidth - 60) : edge === 1 ? -12 : edge === 2 ? window.innerWidth + 12 : this.rng.range(60, window.innerWidth - 60);
       const y = edge === 3 ? window.innerHeight + 12 : edge === 0 ? -12 : this.rng.range(60, window.innerHeight - 60);
       this.addCell(x, y, {
-        energy: this.rng.range(0.12, 0.42),
+        energy: this.rng.range(this.mode === "ritual" ? 0.08 : 0.12, this.mode === "ritual" ? 0.34 : 0.42),
         size: this.rng.range(6, 16),
         alpha: 0,
       });
     }
-    if (this.cells.length > target + 10 && this.rng.chance(dt * 0.18)) {
-      const candidate = this.rng.choice(this.cells.filter((cell) => cell.state !== "dying") || []);
+    const excess = this.cells.length - target;
+    const buffer = this.mode === "ritual" ? 1 : 10;
+    const deathRate = this.mode === "ritual" ? dt * 0.11 * Math.max(1, excess) * this.conductor.controls.death : dt * 0.18;
+    if (excess > buffer && this.rng.chance(deathRate)) {
+      const candidate = this.rng.choice(this.cells.filter((cell) => cell.state !== "dying"));
       if (candidate) candidate.die();
     }
+  }
+
+  updateRitualNarrative(dt) {
+    const stage = this.conductor.currentRitualStage();
+    if (stage.id !== this.ritualState.stageId) {
+      this.ritualState.stageId = stage.id;
+      this.ritualState.nextCueAt = this.elapsed + 0.35;
+      this.enterRitualStage(stage);
+    }
+    this.applyRitualMotion(stage, dt);
+    if (this.elapsed < this.ritualState.nextCueAt) return;
+    this.performRitualCue(stage);
+  }
+
+  enterRitualStage(stage) {
+    this.lastEventText = `Dernier son: ${stage.label}`;
+    if (stage.id === "ritual-birth") {
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy * 0.5, 0.04, 0.22);
+        cell.modulation *= 0.4;
+      });
+    } else if (stage.id === "ritual-growth") {
+      this.energyField = 0.55;
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy + this.rng.range(0.08, 0.18), 0, 0.72);
+      });
+    } else if (stage.id === "ritual-mutation") {
+      this.energyField = 1;
+      for (let i = 0; i < 3; i += 1) {
+        this.addRitualCell(stage, { family: this.rng.choice(["unstable", "granular"]), energy: this.rng.range(0.62, 0.92), size: this.rng.range(6, 13) });
+      }
+    } else if (stage.id === "ritual-extinction") {
+      this.cells
+        .filter((cell) => cell.state !== "dying")
+        .sort((a, b) => b.energy + b.age * 0.002 - (a.energy + a.age * 0.002))
+        .slice(0, Math.max(0, this.cells.length - 7))
+        .forEach((cell) => cell.die());
+    } else if (stage.id === "ritual-rebirth") {
+      for (let i = 0; i < 3; i += 1) {
+        this.addRitualCell(stage, { family: this.rng.choice(["drone", "spectral", "pulsing"]), energy: this.rng.range(0.16, 0.34), size: this.rng.range(12, 24) });
+      }
+    }
+  }
+
+  applyRitualMotion(stage, dt) {
+    const cx = window.innerWidth * 0.5;
+    const cy = window.innerHeight * 0.52;
+    if (stage.id === "ritual-organism") {
+      const radius = Math.min(window.innerWidth, window.innerHeight) * 0.22;
+      this.cells.forEach((cell, index) => {
+        const angle = index / Math.max(1, this.cells.length) * TWO_PI + this.elapsed * 0.08;
+        const tx = cx + Math.cos(angle) * radius;
+        const ty = cy + Math.sin(angle) * radius * 0.62;
+        cell.vx += (tx - cell.x) * dt * 0.004;
+        cell.vy += (ty - cell.y) * dt * 0.004;
+        cell.energy = lerp(cell.energy, 0.56, dt * 0.045);
+      });
+    } else if (stage.id === "ritual-mutation") {
+      this.energyField = Math.max(this.energyField, 0.72);
+      this.cells.forEach((cell) => {
+        cell.modulation = clamp(cell.modulation + dt * 0.09, 0, 1);
+      });
+    } else if (stage.id === "ritual-extinction") {
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy - dt * 0.026, 0, 1.08);
+        cell.vx *= 0.982;
+        cell.vy *= 0.982;
+      });
+    } else if (stage.id === "ritual-birth" || stage.id === "ritual-rebirth") {
+      this.cells.forEach((cell) => {
+        cell.vx += (cx - cell.x) * dt * 0.0014;
+        cell.vy += (cy - cell.y) * dt * 0.0014;
+      });
+    }
+  }
+
+  performRitualCue(stage) {
+    const target = Math.min(stage.profile.targetCells, this.quality.maxCells);
+    if (stage.id === "ritual-birth" || stage.id === "ritual-rebirth") {
+      if (this.cells.length < target) {
+        this.addRitualCell(stage, { family: this.rng.choice(["drone", "spectral", "pulsing"]), energy: this.rng.range(0.1, 0.34), size: this.rng.range(11, 25) });
+      }
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(7, 11);
+      return;
+    }
+    if (stage.id === "ritual-growth") {
+      const parent = this.rng.choice(this.cells.filter((cell) => cell.state !== "dying" && cell.energy > 0.32));
+      if (parent && this.cells.length < target) {
+        parent.energy = clamp(parent.gene.divisionThreshold + 0.08, 0, 1.04);
+        this.divideCell(parent);
+      } else if (this.cells.length < target) {
+        this.addRitualCell(stage, { family: this.rng.choice(["granular", "pulsing", "spectral"]), energy: this.rng.range(0.36, 0.62), size: this.rng.range(7, 16) });
+      }
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(4, 7);
+      return;
+    }
+    if (stage.id === "ritual-organism") {
+      const pair = this.compatibleRitualPair();
+      if (pair && this.rng.chance(0.45)) this.fuseCells(pair[0], pair[1]);
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(8, 13);
+      return;
+    }
+    if (stage.id === "ritual-mutation") {
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy + this.rng.range(0.03, 0.12), 0, 1.08);
+        cell.vx += this.rng.signed(0.65);
+        cell.vy += this.rng.signed(0.65);
+      });
+      if (this.cells.length < target) {
+        this.addRitualCell(stage, { family: this.rng.choice(["unstable", "granular"]), energy: this.rng.range(0.58, 0.9), size: this.rng.range(5, 12) });
+      }
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(3.2, 5.5);
+      return;
+    }
+    if (stage.id === "ritual-extinction") {
+      const living = this.cells.filter((cell) => cell.state !== "dying");
+      if (living.length > target) {
+        const candidate = living.sort((a, b) => b.age + b.energy * 60 - (a.age + a.energy * 60))[0];
+        candidate?.die();
+      }
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(4.5, 7);
+    }
+  }
+
+  addRitualCell(stage, options = {}) {
+    const angle = this.rng.range(0, TWO_PI);
+    const radius = stage.id === "ritual-mutation"
+      ? this.rng.range(80, Math.min(window.innerWidth, window.innerHeight) * 0.44)
+      : this.rng.range(12, Math.min(window.innerWidth, window.innerHeight) * 0.18);
+    return this.addCell(window.innerWidth * 0.5 + Math.cos(angle) * radius, window.innerHeight * 0.52 + Math.sin(angle) * radius, {
+      alpha: 0,
+      vx: Math.cos(angle) * this.rng.range(0.05, 0.38),
+      vy: Math.sin(angle) * this.rng.range(0.05, 0.38),
+      ...options,
+    });
+  }
+
+  compatibleRitualPair() {
+    const living = this.cells.filter((cell) => cell.state !== "dying");
+    for (let i = 0; i < living.length; i += 1) {
+      for (let j = i + 1; j < living.length; j += 1) {
+        if (this.harmonicCompatibility(living[i], living[j]) > 0.86 && distance(living[i], living[j]) < 180) {
+          return [living[i], living[j]];
+        }
+      }
+    }
+    return null;
   }
 
   considerDivision(cell, dt) {
@@ -1926,6 +2238,11 @@ class Organism {
   }
 
   setMode(mode) {
+    if (mode === "ritual") {
+      const seed = this.ui.seedInput.value.trim() || this.seed;
+      this.reset(seed, { mode: "ritual", initialCount: 4 });
+      return;
+    }
     this.mode = mode;
     this.conductor.setMode(mode);
     this.updateModeUi();
