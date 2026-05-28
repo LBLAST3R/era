@@ -1,14 +1,14 @@
 # Bionum
 
-Installation interactive d'electroacoustique generative vivante.
+Installation interactive d'électroacoustique générative vivante.
 
-Le projet utilise `p5.js` pour le visuel et la Web Audio API pour le moteur sonore. Chaque cellule est une voix autonome avec position, vitesse, taille, energie, age, et gene sonore. Le `Conductor` ajuste la densite, le chaos, les filtres, la reverberation et les probabilites biologiques pour garder une musique organique et ecoutable.
+Le projet utilise `p5.js` pour le visuel et la Web Audio API pour le moteur sonore. Chaque cellule est une voix autonome avec position, vitesse, taille, énergie, âge, et gène sonore. Le `Conductor` ajuste la densité, le chaos, les filtres, la réverbération et les probabilités biologiques pour garder une musique organique et écoutable.
 
-Chaque cellule possede aussi une signature sonore et visuelle reconnaissable. Les familles `drone`, `granular`, `pulsing`, `spectral` et `unstable` ont des formes, des halos, des attaques et des accents differents. Les collisions, divisions, fusions et morts affichent des anneaux, lignes et libelles (`TOUCH`, `SPLIT`, `FUSE`, `FADE`) qui indiquent les cellules sources du son dans la barre d'etat.
+Chaque cellule possède aussi une signature sonore et visuelle reconnaissable. Les familles `drone`, `granular`, `pulsing`, `spectral` et `unstable` ont des formes, des halos, des attaques et des accents différents. Les collisions, divisions, fusions et morts affichent des anneaux, lignes et libellés (`TOUCH`, `SPLIT`, `FUSE`, `FADE`) qui indiquent les cellules sources du son dans la barre d'état.
 
-La version actuelle charge par defaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour eviter de saturer la machine.
+La version actuelle charge par défaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour éviter de saturer la machine.
 
-Le mode `Rituel` redemarre l'organisme depuis la seed active et lance une piece narrative de 5 minutes. Il masque automatiquement l'interface comme la touche `H`, affiche une introduction defilante, coupe tout l'organisme trois fois pour ouvrir de nouveaux chapitres, puis laisse les cellules disparaitre progressivement vers 04:45. A 05:00, un generique anime remercie le public et explique comment les cellules, le Conductor et les evenements sonores ont construit la piece.
+Le mode `Rituel` redémarre l'organisme depuis la seed active et lance une pièce narrative complète. Il masque automatiquement l'interface comme la touche `H`, affiche une introduction défilante, coupe parfois tout l'organisme pour laisser apparaître de nouvelles générations, puis termine par un générique animé qui explique comment les cellules, le Conductor et les événements sonores ont construit la pièce.
 
 ## Lancer
 
@@ -18,20 +18,20 @@ python3 -m http.server 4173
 
 Puis ouvrir `http://127.0.0.1:4173`.
 
-Le son demarre uniquement apres un clic sur `Start Audio`, conformement aux regles des navigateurs.
+Le son démarre uniquement après un clic sur `Start Audio`, conformément aux règles des navigateurs.
 
 ## Controles
 
 - `Clic` : ajouter une cellule ou mettre une cellule en solo.
-- `Clic long` : creer une cellule drone massive.
+- `Clic long` : créer une cellule drone massive.
 - `Double-clic` : forcer une division.
 - `Clic droit` : faire mourir une cellule progressivement.
-- `Molette` : modifier l'energie globale.
+- `Molette` : modifier l'énergie globale.
 - `C`, `S`, `X` : modes calme, stable, chaos.
-- `Rituel` : redemarre la seed active, masque l'interface, affiche l'introduction, traverse les chapitres narratifs, puis termine par un generique.
+- `Rituel` : redémarre la seed active, masque l'interface, affiche l'introduction, traverse le récit biologique, puis termine par un générique.
 - `R` : renaissance depuis la seed.
 - `M` : mutation.
-- `A` : activer/desactiver l'auto-evolution.
+- `A` : activer/désactiver l'auto-évolution.
 - `F` : masquer/afficher l'interface, comme `H`.
 - `Espace` : pause/reprise.
 - `H` : masquer/afficher l'interface.

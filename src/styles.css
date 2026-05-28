@@ -618,19 +618,24 @@ input[type="range"] {
 }
 
 .ritual-scroll-mask {
+  --ritual-mask-height: min(360px, 46dvh);
+  --ritual-end-offset: clamp(90px, 18dvh, 190px);
+
   position: relative;
-  height: min(330px, 43dvh);
+  height: var(--ritual-mask-height);
   margin-top: clamp(28px, 5vw, 54px);
   overflow: hidden;
 }
 
 .ritual-scroll {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   color: rgba(240, 239, 230, 0.78);
   font-size: clamp(1rem, 2.2vw, 1.38rem);
-  line-height: 1.58;
-  animation: ritualIntroScroll 17s linear both;
+  font-weight: 380;
+  letter-spacing: -0.012em;
+  line-height: 1.64;
+  animation: ritualIntroScroll 34s linear both;
 }
 
 .ritual-scroll p,
@@ -658,22 +663,24 @@ input[type="range"] {
   color: rgba(240, 239, 230, 0.72);
 }
 
-.ritual-overlay.is-chapter .ritual-frame {
-  height: min(440px, calc(100dvh - 54px));
-}
-
-.ritual-overlay.is-chapter .ritual-scroll {
-  animation: ritualChapterIn 5.4s ease both;
+.ritual-overlay.is-intro .ritual-scroll p:first-child,
+.ritual-overlay.is-credits .ritual-scroll p:first-child {
+  color: rgba(240, 239, 230, 0.95);
+  font-size: clamp(1.12rem, 2.4vw, 1.55rem);
 }
 
 .ritual-overlay.is-credits .ritual-frame {
   height: min(700px, calc(100dvh - 44px));
 }
 
+.ritual-overlay.is-credits .ritual-scroll-mask {
+  --ritual-end-offset: clamp(54px, 10dvh, 120px);
+}
+
 .ritual-overlay.is-credits .ritual-scroll {
-  gap: 22px;
+  gap: 24px;
   text-align: center;
-  animation: ritualCreditsScroll 34s linear infinite;
+  animation: ritualCreditsScroll 42s linear both;
 }
 
 .ritual-overlay.is-credits .ritual-scroll p,
@@ -715,39 +722,25 @@ input[type="range"] {
 
 @keyframes ritualIntroScroll {
   from {
-    transform: translateY(24%);
+    opacity: 0.94;
+    transform: translateY(18%);
   }
 
   to {
-    transform: translateY(-48%);
-  }
-}
-
-@keyframes ritualChapterIn {
-  0% {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-
-  18%,
-  78% {
     opacity: 1;
-    transform: translateY(0);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-18px);
+    transform: translateY(calc(-100% + var(--ritual-end-offset)));
   }
 }
 
 @keyframes ritualCreditsScroll {
   from {
-    transform: translateY(30%);
+    opacity: 0.92;
+    transform: translateY(34%);
   }
 
   to {
-    transform: translateY(-86%);
+    opacity: 1;
+    transform: translateY(calc(-100% + var(--ritual-end-offset)));
   }
 }
 

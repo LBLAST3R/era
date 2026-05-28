@@ -7,7 +7,7 @@ const HARMONIC_MODES = [
   {
     id: "pentatonic-minor",
     name: "Pentatonique mineure",
-    mood: "Doux, meditatif",
+    mood: "Doux, méditatif",
     degrees: [0, 3, 5, 7, 10],
   },
   {
@@ -19,19 +19,19 @@ const HARMONIC_MODES = [
   {
     id: "dorian",
     name: "Dorien",
-    mood: "Organique, equilibre",
+    mood: "Organique, équilibré",
     degrees: [0, 2, 3, 5, 7, 9, 10],
   },
   {
     id: "natural-minor",
     name: "Mineur naturel",
-    mood: "Melancolique, profond",
+    mood: "Mélancolique, profond",
     degrees: [0, 2, 3, 5, 7, 8, 10],
   },
   {
     id: "harmonic-spectrum",
     name: "Spectre naturel",
-    mood: "Electroacoustique",
+    mood: "Électroacoustique",
     spectrum: true,
     ratios: [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 8 / 5, 5 / 3, 7 / 4, 2],
   },
@@ -120,26 +120,27 @@ const EVENT_LABELS = {
 };
 
 const RITUAL_DURATION = 300;
-const RITUAL_INTRO_DURATION = 18;
+const RITUAL_INTRO_DURATION = 36;
+const RITUAL_CREDITS_DURATION = 44;
 const RITUAL_FADE_START = 285;
 
 const RITUAL_RESET_CUES = [
   {
     time: 68,
     title: "Chapitre II - Coupure",
-    text: "Le premier organisme s'efface d'un seul geste. Une nouvelle souche apparait, plus nerveuse.",
+    text: "Le premier organisme s'efface d'un seul geste. Une nouvelle souche apparaît, plus nerveuse.",
     seedCount: 3,
   },
   {
     time: 146,
     title: "Chapitre III - Mutation",
-    text: "La colonie precedente disparait. Les cellules reviennent avec des trajectoires plus tendues.",
+    text: "La colonie précédente disparaît. Les cellules reviennent avec des trajectoires plus tendues.",
     seedCount: 4,
   },
   {
     time: 222,
     title: "Chapitre IV - Surcharge",
-    text: "Derniere rupture: l'organisme repart a zero avant de se remplir jusqu'au chaos.",
+    text: "Dernière rupture: l'organisme repart à zéro avant de se remplir jusqu'au chaos.",
     seedCount: 5,
   },
 ];
@@ -157,8 +158,8 @@ const RITUAL_STAGES = [
   {
     id: "ritual-awakening",
     start: 0,
-    label: "Rituel I - Eveil",
-    text: "Eveil: quelques cellules calmes ouvrent la trajectoire.",
+    label: "Rituel I - Éveil",
+    text: "Éveil: quelques cellules calmes ouvrent la trajectoire.",
     profile: {
       targetCells: 4,
       targetEnergy: 0.22,
@@ -175,8 +176,8 @@ const RITUAL_STAGES = [
   {
     id: "ritual-proliferation",
     start: 0.18,
-    label: "Rituel II - Proliferation",
-    text: "Proliferation: les voix se multiplient et l'espace se remplit.",
+    label: "Rituel II - Prolifération",
+    text: "Prolifération: les voix se multiplient et l'espace se remplit.",
     profile: {
       targetCells: 9,
       targetEnergy: 0.44,
@@ -211,8 +212,8 @@ const RITUAL_STAGES = [
   {
     id: "ritual-surge",
     start: 0.64,
-    label: "Rituel IV - Debordement",
-    text: "Debordement: divisions rapides, collisions et glitches controles.",
+    label: "Rituel IV - Débordement",
+    text: "Débordement: divisions rapides, collisions et glitches contrôlés.",
     profile: {
       targetCells: 18,
       targetEnergy: 0.8,
@@ -230,7 +231,7 @@ const RITUAL_STAGES = [
     id: "ritual-total-chaos",
     start: 0.78,
     label: "Rituel V - Chaos total",
-    text: "Chaos total: l'organisme atteint sa densite maximale.",
+    text: "Chaos total: l'organisme atteint sa densité maximale.",
     profile: {
       targetCells: MAX_CELLS,
       targetEnergy: 0.96,
@@ -306,6 +307,7 @@ function createRitualState() {
     overlayVariant: null,
     finalFadeStarted: false,
     creditsShown: false,
+    creditsReturnTimer: 0,
   };
 }
 
@@ -1243,15 +1245,14 @@ class Conductor {
   describe() {
     if (this.mode === "ritual") {
       const stage = this.currentRitualStage();
-      const elapsed = Math.min(this.ritualTime, RITUAL_DURATION);
-      return `${stage.text} ${formatClock(elapsed)} / ${formatClock(RITUAL_DURATION)}.`;
+      return stage.text;
     }
-    if (this.metrics.density > 0.76) return "Densite haute: divisions freinees, filtre adouci.";
-    if (this.metrics.dissonance > 0.58) return "Tension detectee: consonance et volume corriges.";
-    if (this.phase.id === "mutation") return "Mutation active: accidents courts sous controle.";
+    if (this.metrics.density > 0.76) return "Densité haute: divisions freinées, filtre adouci.";
+    if (this.metrics.dissonance > 0.58) return "Tension détectée: consonance et volume corrigés.";
+    if (this.phase.id === "mutation") return "Mutation active: accidents courts sous contrôle.";
     if (this.phase.id === "extinction") return "Extinction lente: les halos respirent puis s'effacent.";
-    if (this.metrics.energy < 0.22) return "Quasi-silence fertile: ecoute des respirations.";
-    return "Equilibre vivant: la partition reste ouverte.";
+    if (this.metrics.energy < 0.22) return "Quasi-silence fertile: écoute des respirations.";
+    return "Équilibre vivant: la partition reste ouverte.";
   }
 }
 
@@ -1606,6 +1607,9 @@ class Organism {
   }
 
   reset(seed = this.seed, options = {}) {
+    if (this.ritualState?.creditsReturnTimer) {
+      window.clearTimeout(this.ritualState.creditsReturnTimer);
+    }
     this.seed = seed;
     this.rng = new SeededRandom(seed);
     this.quality = qualityProfile();
@@ -1640,11 +1644,12 @@ class Organism {
     }
     if (ritualBirth) {
       this.autoEvolution = true;
-      this.lastEventText = "Dernier son: RITUEL seed remise a zero";
+      this.lastEventText = "Dernier son: RITUEL seed remise à zéro";
       document.body.classList.add("hide-ui");
       this.showRitualIntro();
     } else {
       this.hideRitualOverlay();
+      document.body.classList.remove("hide-ui");
     }
     this.audio.removeAllVoices();
     this.updateHarmonyUi();
@@ -1961,39 +1966,25 @@ class Organism {
 
   showRitualIntro() {
     this.ritualState.overlayUntil = RITUAL_INTRO_DURATION;
-    this.showRitualOverlay("intro", "BIONUM / RITUEL / 05:00", "Un organisme sonore va commencer", [
-      "Pendant cinq minutes, Bionum se comporte comme une piece vivante.",
-      "Chaque cellule que vous verrez est aussi une voix sonore: sa position, son energie, sa taille et son age modifient le timbre, la hauteur, le filtre et l'espace stereo.",
-      "Le Conductor observe la densite, la dissonance, les collisions et le niveau d'energie. Il garde le chaos musical au lieu de le laisser devenir un bruit brut.",
-      "Trois fois, l'organisme sera coupe net: toutes les cellules disparaitront, puis une nouvelle generation reapparaitra pour ouvrir un autre chapitre.",
-      "Vers 04:45, les voix commenceront a s'eteindre. A 05:00, le generique expliquera ce que vous venez d'ecouter et de regarder.",
+    this.showRitualOverlay("intro", "BIONUM / RITUEL", "Un organisme sonore va commencer", [
+      "Bionum est une pièce vivante: un organisme lumineux qui compose sa propre musique au moment où vous le regardez.",
+      "Chaque cellule est une voix. Sa position ouvre l'espace stéréo, sa taille donne du poids au son, son énergie éclaire le timbre, et son âge rend la matière plus fragile.",
+      "Le Conductor écoute l'ensemble en silence. Il mesure la densité, la tension, les collisions et la respiration du système pour garder le chaos lisible, musical et sûr.",
+      "Le rituel traverse plusieurs états: apparition, croissance, rupture, renaissance, surcharge, puis disparition. Les cellules peuvent s'effacer d'un seul geste avant de laisser revenir une nouvelle génération.",
+      "À la fin, le générique reprend le relais. Il révèle les règles invisibles qui ont transformé ces mouvements biologiques en sons, en textures et en espace.",
     ], 0);
   }
 
-  showRitualChapter(title, text) {
-    this.ritualState.overlayUntil = this.conductor.ritualTime + 5.4;
-    this.showRitualOverlay("chapter", formatClock(this.conductor.ritualTime), title, [
-      text,
-      "La partition repart depuis une petite population: la seed reste la meme, mais le recit change de forme.",
-    ]);
-  }
-
   showRitualCredits() {
-    this.showRitualOverlay("credits", "BIONUM / GENERIQUE", "Merci d'avoir ecoute et regarde", [
-      "Cette piece a ete generee en direct par un organisme de cellules sonores.",
-      "Chaque cellule possede une position, une vitesse, une taille, une energie, un age, une famille sonore et une memoire d'interactions.",
-      "Position X: panoramique stereo et registre.",
-      "Position Y: filtrage et profondeur.",
-      "Taille: volume, presence et richesse harmonique.",
-      "Energie: brillance, densite et instabilite.",
-      "Collision: micro-percussion filtree.",
-      "Division: nouvelle voix derivee de la cellule mere.",
-      "Fusion: melange de timbres et glissement harmonique.",
-      "Mort: disparition douce et resonance finale.",
-      "Le Conductor agit comme un chef invisible: il limite les volumes, module les filtres, ajuste la reverberation et controle la densite pour proteger l'ecoute.",
-      "Le mode Rituel a utilise la seed active comme partition reproductible, puis a traverse plusieurs chapitres: apparition, effacement, renaissance, surcharge et dissolution.",
-      "Merci d'avoir observe ce vivant numerique.",
-      "Bionum - organisme electroacoustique generatif.",
+    this.showRitualOverlay("credits", "BIONUM / GÉNÉRIQUE", "Merci d'avoir écouté et regardé", [
+      "Vous venez d'observer une partition générée en direct, sans bande-son fixe.",
+      "Les cellules ont écrit la musique par leur mouvement: leurs distances ont créé les tensions, leurs rapprochements ont ouvert les accidents, leurs disparitions ont laissé respirer le silence.",
+      "La position a dessiné l'espace stéréo. L'énergie a modelé la brillance. La taille a donné de la profondeur. L'âge a rendu le timbre plus poreux, plus instable, presque organique.",
+      "Une collision a produit une impulsion courte. Une division a fait naître une voix parente. Une fusion a mélangé deux mémoires sonores. Une mort a retiré une présence sans couper brutalement l'écoute.",
+      "Le Conductor a agi comme un chef invisible. Il a limité les volumes, filtré les excès, guidé la réverbération et retenu le chaos pour que l'organisme reste musical.",
+      "Chaque seed devient ainsi une petite partition vivante: le même point de départ peut être rejoué, observé, comparé, puis laissé dériver.",
+      "Merci d'avoir prêté attention à cette matière lumineuse, fragile et sonore.",
+      "Bionum - organisme électroacoustique génératif.",
     ], 1);
   }
 
@@ -2039,9 +2030,6 @@ class Organism {
     if (this.ritualState.overlayVariant === "intro" && ritualTime >= RITUAL_INTRO_DURATION) {
       this.hideRitualOverlay();
     }
-    if (this.ritualState.overlayVariant === "chapter" && this.ritualState.overlayUntil && ritualTime >= this.ritualState.overlayUntil) {
-      this.hideRitualOverlay();
-    }
 
     if (this.ritualState.pendingSeedAt && ritualTime >= this.ritualState.pendingSeedAt) {
       this.spawnRitualSeedPack(stage, this.ritualState.pendingSeedCount || 3);
@@ -2057,7 +2045,6 @@ class Organism {
 
     if (ritualTime >= RITUAL_FADE_START && !this.ritualState.finalFadeStarted) {
       this.ritualState.finalFadeStarted = true;
-      this.showRitualChapter("Dernier mouvement - Dissolution", "A partir de 04:45, les cellules quittent le champ une par une. Le vivant sonore retourne au silence.");
       this.lastEventText = "Dernier son: DISSOLUTION";
     }
 
@@ -2083,7 +2070,6 @@ class Organism {
     this.ritualState.pendingSeedCount = cue.seedCount;
     this.ritualState.nextCueAt = this.elapsed + 3.2;
     this.lastEventText = `Dernier son: ${cue.title.toUpperCase()}`;
-    this.showRitualChapter(cue.title, cue.text);
   }
 
   spawnRitualSeedPack(stage, count) {
@@ -2120,6 +2106,23 @@ class Organism {
     this.lastEventText = "Dernier son: MERCI";
     document.body.classList.add("hide-ui");
     this.showRitualCredits();
+    if (this.ritualState.creditsReturnTimer) window.clearTimeout(this.ritualState.creditsReturnTimer);
+    this.ritualState.creditsReturnTimer = window.setTimeout(() => {
+      this.returnFromRitualCredits();
+    }, RITUAL_CREDITS_DURATION * 1000);
+  }
+
+  returnFromRitualCredits() {
+    if (!this.ritualState.creditsShown) return;
+    const harmonicIndex = this.harmonicIndex;
+    this.reset(this.seed, {
+      mode: "stable",
+      harmonicIndex,
+      initialCount: Math.min(this.quality.maxCells, 10),
+    });
+    document.body.classList.remove("hide-ui");
+    this.hideRitualOverlay();
+    this.lastEventText = "Dernier son: retour au mode stable";
   }
 
   enterRitualStage(stage) {
@@ -2876,7 +2879,7 @@ function updateUi(organism, audio, ui) {
   ui.conductorText.textContent = organism.conductor.lastText;
   ui.cellCount.textContent = `${organism.cells.length} cellules`;
   ui.activeVoices.textContent = `${audio.voiceMap.size} voix`;
-  ui.autoState.textContent = organism.autoEvolution ? "Auto-evolution active" : "Auto-evolution suspendue";
+  ui.autoState.textContent = organism.autoEvolution ? "Auto-évolution active" : "Auto-évolution suspendue";
   ui.performanceState.textContent = organism.quality.label;
   ui.lastEvent.textContent = organism.lastEventText;
   const elapsed = audio.recorder.elapsed(audio.context);

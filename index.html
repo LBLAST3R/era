@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bionum — Electroacoustic organism</title>
+    <title>Bionum — Organisme électroacoustique</title>
     <meta
       name="description"
-      content="Installation interactive d'electroacoustique generative avec p5.js et Web Audio API."
+      content="Installation interactive d'électroacoustique générative avec p5.js et Web Audio API."
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2302070b'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%2378f3a2' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%2354c7ff'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="src/styles.css" />
@@ -14,7 +14,7 @@
     <script type="module" src="src/app.js"></script>
   </head>
   <body>
-    <main class="app-shell" aria-label="Bionum generative electroacoustic instrument">
+    <main class="app-shell" aria-label="Instrument électroacoustique génératif Bionum">
       <div id="organism-canvas" class="organism-canvas" aria-hidden="true"></div>
 
       <header class="brand-panel surface-panel">
@@ -50,7 +50,7 @@
               <span class="mode-orb stable"></span>
               <span>
                 <strong>Stable</strong>
-                <small>Ecosysteme equilibre</small>
+                <small>Écosystème équilibré</small>
               </span>
             </button>
             <button class="mode-card" data-mode="chaos" type="button">
@@ -64,7 +64,7 @@
               <span class="mode-orb ritual"></span>
               <span>
                 <strong>Rituel</strong>
-                <small>Montee chaos de 5 min</small>
+                <small>Récit génératif complet</small>
               </span>
             </button>
           </div>
@@ -75,14 +75,14 @@
             <span>Harmonie</span>
           </div>
           <div class="harmony-switch">
-            <button id="prevHarmony" class="round-button" type="button" aria-label="Mode harmonique precedent">‹</button>
+            <button id="prevHarmony" class="round-button" type="button" aria-label="Mode harmonique précédent">‹</button>
             <div class="harmony-orbit" aria-hidden="true">
               <span></span>
               <i></i>
             </div>
             <div>
               <strong id="harmonyName">Dorien</strong>
-              <small id="harmonyMood">Organique, equilibre</small>
+              <small id="harmonyMood">Organique, équilibré</small>
             </div>
             <button id="nextHarmony" class="round-button" type="button" aria-label="Mode harmonique suivant">›</button>
           </div>
@@ -96,7 +96,7 @@
             <input id="seedInput" value="marais-bleu-2049" autocomplete="off" />
             <button id="applySeed" type="button">Apply</button>
           </label>
-          <button id="randomSeed" class="text-button" type="button">Seed aleatoire reproductible</button>
+          <button id="randomSeed" class="text-button" type="button">Seed aléatoire reproductible</button>
         </section>
 
         <section class="surface-panel panel-block hints-panel">
@@ -106,9 +106,9 @@
           <dl>
             <div><dt>Clic</dt><dd>ajouter / solo</dd></div>
             <div><dt>Clic long</dt><dd>drone massif</dd></div>
-            <div><dt>Double-clic</dt><dd>division forcee</dd></div>
+            <div><dt>Double-clic</dt><dd>division forcée</dd></div>
             <div><dt>Clic droit</dt><dd>mort douce</dd></div>
-            <div><dt>Molette</dt><dd>energie globale</dd></div>
+            <div><dt>Molette</dt><dd>énergie globale</dd></div>
             <div><dt>Espace</dt><dd>pause / reprise</dd></div>
           </dl>
         </section>
@@ -199,7 +199,7 @@
       <footer class="status-strip surface-panel">
         <span id="cellCount">0 cellules</span>
         <span id="activeVoices">0 voix</span>
-        <span id="autoState">Auto-evolution active</span>
+        <span id="autoState">Auto-évolution active</span>
         <span id="performanceState">Performance max</span>
         <span id="lastEvent">Dernier son: respiration initiale</span>
         <span>F/H interface · C/S/X modes · R renaissance · M mutation · A auto</span>
