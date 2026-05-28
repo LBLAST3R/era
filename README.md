@@ -1,4 +1,4 @@
-# ERA
+# Bionum
 
 Installation interactive d'electroacoustique generative vivante.
 

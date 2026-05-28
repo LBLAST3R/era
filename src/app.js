@@ -120,7 +120,7 @@ const EVENT_LABELS = {
 };
 
 const PHASES = [
-  { id: "germination", label: "Germination" },
+  { id: "germination", label: "Bionum" },
   { id: "growth", label: "Croissance" },
   { id: "organization", label: "Organisation" },
   { id: "mutation", label: "Mutation" },
@@ -1994,7 +1994,7 @@ class Organism {
 
   serialize() {
     return {
-      title: "ERA",
+      title: "Bionum",
       version: 1,
       seed: this.seed,
       mode: this.mode,

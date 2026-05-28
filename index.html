@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ERA — Electroacoustic organism</title>
+    <title>Bionum — Electroacoustic organism</title>
     <meta
       name="description"
       content="Installation interactive d'electroacoustique generative avec p5.js et Web Audio API."
@@ -14,12 +14,22 @@
     <script type="module" src="src/app.js"></script>
   </head>
   <body>
-    <main class="app-shell" aria-label="ERA generative electroacoustic instrument">
+    <main class="app-shell" aria-label="Bionum generative electroacoustic instrument">
       <div id="organism-canvas" class="organism-canvas" aria-hidden="true"></div>
 
       <header class="brand-panel surface-panel">
-        <div class="era-mark" aria-label="ERA">era</div>
-        <p class="system-state" id="phaseLabel">Germination</p>
+        <div class="brand-logo" aria-label="Bionum">
+          <svg viewBox="0 0 64 64" role="img" aria-labelledby="bionumLogoTitle">
+            <title id="bionumLogoTitle">Logo Bionum</title>
+            <path class="logo-ring" d="M46.7 13.5c8.1 6.7 10.1 19.3 4.3 28.1-5.9 8.8-18.2 13.8-28.1 9.9C13 47.6 5.7 34.7 9 24.2 12.3 13.7 26.1 5.6 37 8.8c3.5 1 6.8 2.5 9.7 4.7Z" />
+            <path class="logo-thread" d="M18 39.5c5.7-13.8 14.8-19.6 28.5-17.7M17.7 24.6c10.5 1.7 18.1 8 22.9 19" />
+            <circle class="logo-node main" cx="31.7" cy="31.7" r="7.2" />
+            <circle class="logo-node" cx="18.3" cy="39.6" r="2.6" />
+            <circle class="logo-node" cx="46.2" cy="21.9" r="2.6" />
+            <circle class="logo-node" cx="40.4" cy="43.3" r="2.2" />
+          </svg>
+        </div>
+        <p class="system-state" id="phaseLabel">Bionum</p>
         <p>Organisme sonore autonome.</p>
       </header>
 
