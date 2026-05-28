@@ -619,7 +619,7 @@ input[type="range"] {
 
 .ritual-scroll-mask {
   --ritual-mask-height: min(360px, 46dvh);
-  --ritual-end-offset: clamp(90px, 18dvh, 190px);
+  --ritual-end-padding: 26px;
 
   position: relative;
   height: var(--ritual-mask-height);
@@ -635,7 +635,7 @@ input[type="range"] {
   font-weight: 380;
   letter-spacing: -0.012em;
   line-height: 1.64;
-  animation: ritualIntroScroll 34s linear both;
+  animation: ritualIntroScroll 46s linear both;
 }
 
 .ritual-scroll p,
@@ -669,12 +669,16 @@ input[type="range"] {
   font-size: clamp(1.12rem, 2.4vw, 1.55rem);
 }
 
+.ritual-overlay.is-intro .ritual-frame {
+  height: min(820px, calc(100dvh - 44px));
+}
+
 .ritual-overlay.is-credits .ritual-frame {
   height: min(700px, calc(100dvh - 44px));
 }
 
 .ritual-overlay.is-credits .ritual-scroll-mask {
-  --ritual-end-offset: clamp(54px, 10dvh, 120px);
+  --ritual-end-padding: 26px;
 }
 
 .ritual-overlay.is-credits .ritual-scroll {
@@ -728,7 +732,7 @@ input[type="range"] {
 
   to {
     opacity: 1;
-    transform: translateY(calc(-100% + var(--ritual-end-offset)));
+    transform: translateY(calc(-100% + var(--ritual-mask-height) - var(--ritual-end-padding)));
   }
 }
 
@@ -740,7 +744,7 @@ input[type="range"] {
 
   to {
     opacity: 1;
-    transform: translateY(calc(-100% + var(--ritual-end-offset)));
+    transform: translateY(calc(-100% + var(--ritual-mask-height) - var(--ritual-end-padding)));
   }
 }
 
