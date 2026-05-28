@@ -1500,7 +1500,6 @@ class Organism {
     if (this.frameIndex % this.quality.drawConnectionsEvery === 0) this.drawConnections(p);
     if (this.frameIndex % this.quality.drawEventsEvery === 0) this.drawEvents(p);
     this.cells.forEach((cell) => cell.draw(p));
-    this.drawMouseField(p);
   }
 
   createParticles() {
@@ -1670,16 +1669,6 @@ class Organism {
       }
     }
     return nearby;
-  }
-
-  drawMouseField(p) {
-    if (!this.mouse.active) return;
-    p.push();
-    p.noFill();
-    p.stroke(156, 100, 72, this.mouse.dragging ? 0.22 : 0.12);
-    p.strokeWeight(1);
-    p.circle(this.mouse.x, this.mouse.y, this.mouse.radius * 2);
-    p.pop();
   }
 
   flowAt(x, y, t) {
@@ -2140,7 +2129,7 @@ class InteractionManager {
       this.ui.recordVideo.textContent = "Stop Video";
       this.ui.recordVideo.classList.add("is-recording");
     });
-    this.ui.fullscreenMode.addEventListener("click", () => this.toggleFullscreenInstallation());
+    this.ui.fullscreenMode.addEventListener("click", () => this.toggleInterfaceVisibility());
     this.ui.saveState.addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(this.organism.serialize(), null, 2)], { type: "application/json" });
       downloadBlob(blob, `era-state-${Date.now()}.json`);
@@ -2170,36 +2159,13 @@ class InteractionManager {
       else if (key === "r") this.organism.reset(this.organism.seed);
       else if (key === "m") this.organism.mutate();
       else if (key === "a") this.organism.autoEvolution = !this.organism.autoEvolution;
-      else if (key === "f") this.toggleFullscreenInstallation();
-      else if (key === "h") document.body.classList.toggle("hide-ui");
-    });
-    document.addEventListener("fullscreenchange", () => {
-      const active = Boolean(document.fullscreenElement);
-      document.body.classList.toggle("installation-mode", active);
-      document.body.classList.toggle("hide-ui", active);
-      this.ui.fullscreenMode.textContent = active ? "Exit Fullscreen" : "Fullscreen";
-      this.organism.resize();
+      else if (key === "f" || key === "h") this.toggleInterfaceVisibility();
     });
   }
 
-  async toggleFullscreenInstallation() {
-    if (!document.fullscreenElement) {
-      document.body.classList.add("installation-mode", "hide-ui");
-      try {
-        await document.documentElement.requestFullscreen?.();
-      } catch (_) {
-        // Some browsers block fullscreen outside a trusted click; installation mode still hides the UI.
-      }
-      this.ui.fullscreenMode.textContent = "Exit Fullscreen";
-    } else {
-      try {
-        await document.exitFullscreen?.();
-      } catch (_) {
-        // Keep the local UI state consistent even if the browser refuses the fullscreen exit call.
-      }
-      document.body.classList.remove("installation-mode", "hide-ui");
-      this.ui.fullscreenMode.textContent = "Fullscreen";
-    }
+  toggleInterfaceVisibility() {
+    document.body.classList.toggle("hide-ui");
+    this.ui.fullscreenMode.textContent = "Fullscreen";
     this.organism.resize();
   }
 
@@ -2386,7 +2352,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
       canvas.parent("organism-canvas");
       p.pixelDensity(qualityProfile().pixelDensity);
-      p.frameRate(15);
+      p.frameRate(30);
       p.colorMode(p.HSL, 360, 100, 100, 1);
       p.noiseSeed(hashSeed(ui.seedInput.value));
       organism = new Organism(p, audio, ui);

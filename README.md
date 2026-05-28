@@ -29,7 +29,7 @@ Le son demarre uniquement apres un clic sur `Start Audio`, conformement aux regl
 - `R` : renaissance depuis la seed.
 - `M` : mutation.
 - `A` : activer/desactiver l'auto-evolution.
-- `F` : passer en plein ecran installation, avec interface masquee.
+- `F` : masquer/afficher l'interface, comme `H`.
 - `Espace` : pause/reprise.
 - `H` : masquer/afficher l'interface.
 

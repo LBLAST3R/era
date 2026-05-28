@@ -545,11 +545,6 @@ input[type="range"] {
   pointer-events: none;
 }
 
-.installation-mode,
-.installation-mode .organism-canvas {
-  cursor: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
