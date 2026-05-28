@@ -1,58 +1,199 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sonic Genesis</title>
-    <link rel="stylesheet" href="/style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cellular Organism — Electroacoustic Living System</title>
+    <meta
+      name="description"
+      content="Application interactive d'electroacoustique generative avec p5.js et Web Audio API."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2302070b'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%2378f3a2' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%2354c7ff'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+    <script type="module" src="src/app.js"></script>
   </head>
   <body>
-    <div id="app">
-      <section id="screen-welcome" class="screen">
-        <h1>Sonic Genesis</h1>
-        <p class="tagline">Upload a sound. Watch it become alive.</p>
-        <label class="import-btn">
-          <input type="file" id="file-audio" accept="audio/*" hidden />
-          <span>Import a track</span>
-        </label>
-        <p class="hint">Audio files (mp3, wav, ogg, m4a…). Click anywhere after import to start.</p>
-      </section>
+    <main class="app-shell" aria-label="Cellular Organism generative electroacoustic instrument">
+      <div id="organism-canvas" class="organism-canvas" aria-hidden="true"></div>
 
-      <section id="screen-experience" class="screen hidden" aria-hidden="true">
-        <canvas id="view" width="800" height="600"></canvas>
-        <canvas id="view-gl" width="800" height="600" class="view-gl"></canvas>
-        <div class="hud">
-          <div class="hud-title" id="hud-filename">—</div>
-          <div class="hud-time"><span id="hud-time">0:00</span> / <span id="hud-duration">0:00</span></div>
-          <div class="hud-bars" aria-label="Spectral energy">
-            <div class="bar"><span>Low</span><i id="bar-bass" style="--p:0%"></i></div>
-            <div class="bar"><span>Mid</span><i id="bar-mid" style="--p:0%"></i></div>
-            <div class="bar"><span>High</span><i id="bar-treble" style="--p:0%"></i></div>
-          </div>
-          <div class="hud-stats">
-            <span>Cells: <strong id="hud-cells">0</strong></span>
-            <span>State: <strong id="hud-state">Dormance</strong></span>
-            <span>FPS: <strong id="hud-fps">60</strong></span>
-          </div>
-        </div>
-        <div class="keys" aria-label="Keyboard shortcuts">
-          <kbd>C</kbd> calm &nbsp; <kbd>X</kbd> chaos &nbsp; <kbd>M</kbd> mutation &nbsp; <kbd>R</kbd> reset
-          &nbsp; <kbd>S</kbd> save image
-        </div>
-      </section>
+      <header class="brand-panel glass-panel">
+        <p class="system-state" id="phaseLabel">Germination</p>
+        <h1>Cellular Organism</h1>
+        <p>Organisme sonore vivant et autonome.</p>
+      </header>
 
-      <div id="screen-end" class="overlay hidden" role="dialog" aria-label="Track ended">
-        <div class="end-card">
-          <h2>Organism complete</h2>
-          <p class="dna-preview" id="end-dna">—</p>
-          <div class="end-actions">
-            <button type="button" id="btn-export-png">Save image</button>
-            <button type="button" id="btn-export-json">Save ADN (JSON)</button>
-            <button type="button" id="btn-new">New track</button>
+      <aside class="left-rail">
+        <section class="glass-panel panel-block">
+          <div class="panel-title">
+            <span class="panel-icon">✳</span>
+            <span>Mode</span>
           </div>
-        </div>
-      </div>
-    </div>
-    <script type="module" src="/src/main.js"></script>
+          <div class="mode-grid" role="group" aria-label="Modes de l'organisme">
+            <button class="mode-card is-active" data-mode="calm" type="button">
+              <span class="mode-orb calm"></span>
+              <span>
+                <strong>Calme</strong>
+                <small>Ambient lente, espaces larges</small>
+              </span>
+            </button>
+            <button class="mode-card" data-mode="stable" type="button">
+              <span class="mode-orb stable"></span>
+              <span>
+                <strong>Stable</strong>
+                <small>Ecosysteme equilibre</small>
+              </span>
+            </button>
+            <button class="mode-card" data-mode="chaos" type="button">
+              <span class="mode-orb chaos"></span>
+              <span>
+                <strong>Chaos</strong>
+                <small>Mutation dense mais musicale</small>
+              </span>
+            </button>
+            <button class="mode-card" data-mode="ritual" type="button">
+              <span class="mode-orb ritual"></span>
+              <span>
+                <strong>Rituel</strong>
+                <small>Cycle narratif 5-10 min</small>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section class="glass-panel panel-block">
+          <div class="panel-title">
+            <span class="panel-icon">⌁</span>
+            <span>Harmonie</span>
+          </div>
+          <div class="harmony-switch">
+            <button id="prevHarmony" class="round-button" type="button" aria-label="Mode harmonique precedent">‹</button>
+            <div class="harmony-orbit" aria-hidden="true">
+              <span></span>
+              <i></i>
+            </div>
+            <div>
+              <strong id="harmonyName">Dorien</strong>
+              <small id="harmonyMood">Organique, equilibre</small>
+            </div>
+            <button id="nextHarmony" class="round-button" type="button" aria-label="Mode harmonique suivant">›</button>
+          </div>
+        </section>
+
+        <section class="glass-panel panel-block">
+          <div class="panel-title">
+            <span class="panel-icon">◌</span>
+            <span>Seed</span>
+          </div>
+          <label class="seed-row" for="seedInput">
+            <input id="seedInput" value="marais-bleu-2049" autocomplete="off" />
+            <button id="applySeed" type="button">Apply</button>
+          </label>
+          <button id="randomSeed" class="text-button" type="button">Seed aleatoire reproductible</button>
+        </section>
+
+        <section class="glass-panel panel-block hints-panel">
+          <div class="panel-title">
+            <span class="panel-icon">?</span>
+            <span>Jardinier sonore</span>
+          </div>
+          <dl>
+            <div><dt>Clic</dt><dd>ajouter / solo</dd></div>
+            <div><dt>Clic long</dt><dd>drone massif</dd></div>
+            <div><dt>Double-clic</dt><dd>division forcee</dd></div>
+            <div><dt>Clic droit</dt><dd>mort douce</dd></div>
+            <div><dt>Molette</dt><dd>energie globale</dd></div>
+            <div><dt>Espace</dt><dd>pause / reprise</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <aside class="right-rail">
+        <section class="glass-panel panel-block conductor-panel">
+          <div class="panel-title">
+            <span class="panel-icon">∿</span>
+            <span>Conductor</span>
+          </div>
+          <div class="metric-list">
+            <div class="metric">
+              <span>Density</span>
+              <strong id="densityValue">0%</strong>
+              <div class="meter"><i id="densityMeter"></i></div>
+            </div>
+            <div class="metric">
+              <span>Energy</span>
+              <strong id="energyValue">0%</strong>
+              <div class="meter energy"><i id="energyMeter"></i></div>
+            </div>
+            <div class="metric">
+              <span>Dissonance</span>
+              <strong id="dissonanceValue">0%</strong>
+              <div class="meter dissonance"><i id="dissonanceMeter"></i></div>
+            </div>
+            <div class="metric">
+              <span>Chaos</span>
+              <strong id="chaosValue">0%</strong>
+              <div class="meter chaos"><i id="chaosMeter"></i></div>
+            </div>
+          </div>
+          <div class="phase-orb" aria-hidden="true">
+            <span></span>
+            <i></i>
+            <b></b>
+          </div>
+          <p id="conductorText" class="conductor-text">Respiration initiale.</p>
+        </section>
+
+        <section class="glass-panel panel-block audio-panel">
+          <div class="panel-title">
+            <span class="panel-icon">∿</span>
+            <span>Audio</span>
+          </div>
+          <button id="startAudio" class="primary-action" type="button">
+            <span>▶</span>
+            Start Audio
+          </button>
+          <button id="recordAudio" class="record-action" type="button">
+            <span></span>
+            Record WAV
+            <small id="recordTime">00:00</small>
+          </button>
+          <label class="volume-row" for="masterVolume">
+            Volume
+            <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.72" />
+          </label>
+        </section>
+
+        <section class="glass-panel panel-block export-panel">
+          <div class="panel-title">
+            <span class="panel-icon">⇩</span>
+            <span>Export / Save / Load</span>
+          </div>
+          <div class="export-grid">
+            <button id="exportWav" type="button">Export WAV</button>
+            <button id="recordVideo" type="button">Record Video</button>
+            <button id="fullscreenMode" type="button">Fullscreen</button>
+            <button id="saveState" type="button">Save State</button>
+            <button id="loadState" type="button">Load State</button>
+            <button id="snapshotPng" type="button">Snapshot PNG</button>
+          </div>
+          <input id="stateFile" class="hidden-file" type="file" accept="application/json" />
+        </section>
+      </aside>
+
+      <footer class="status-strip glass-panel">
+        <span id="cellCount">0 cellules</span>
+        <span id="activeVoices">0 voix</span>
+        <span id="autoState">Auto-evolution active</span>
+        <span id="lastEvent">Dernier son: respiration initiale</span>
+        <span>Touches: F plein ecran · H interface · C/S/X modes · R renaissance · M mutation · A auto</span>
+      </footer>
+    </main>
   </body>
 </html>
