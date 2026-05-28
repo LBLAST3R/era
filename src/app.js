@@ -121,7 +121,6 @@ const EVENT_LABELS = {
 
 const RITUAL_DURATION = 300;
 const RITUAL_INTRO_DURATION = 52;
-const RITUAL_CREDITS_DURATION = 44;
 const RITUAL_FADE_START = 285;
 
 const RITUAL_RESET_CUES = [
@@ -307,7 +306,6 @@ function createRitualState() {
     overlayVariant: null,
     finalFadeStarted: false,
     creditsShown: false,
-    creditsReturnTimer: 0,
   };
 }
 
@@ -1607,9 +1605,6 @@ class Organism {
   }
 
   reset(seed = this.seed, options = {}) {
-    if (this.ritualState?.creditsReturnTimer) {
-      window.clearTimeout(this.ritualState.creditsReturnTimer);
-    }
     this.seed = seed;
     this.rng = new SeededRandom(seed);
     this.quality = qualityProfile();
@@ -1984,6 +1979,7 @@ class Organism {
       "Le Conductor a agi comme un chef invisible. Il a limité les volumes, filtré les excès, guidé la réverbération et retenu le chaos pour que l'organisme reste musical.",
       "Chaque seed devient ainsi une petite partition vivante: le même point de départ peut être rejoué, observé, comparé, puis laissé dériver.",
       "Merci d'avoir prêté attention à cette matière lumineuse, fragile et sonore.",
+      "Appuyez sur Échap ou sur n'importe quelle touche pour revenir au mode stable.",
       "Bionum - organisme électroacoustique génératif.",
     ], 1);
   }
@@ -2106,10 +2102,6 @@ class Organism {
     this.lastEventText = "Dernier son: MERCI";
     document.body.classList.add("hide-ui");
     this.showRitualCredits();
-    if (this.ritualState.creditsReturnTimer) window.clearTimeout(this.ritualState.creditsReturnTimer);
-    this.ritualState.creditsReturnTimer = window.setTimeout(() => {
-      this.returnFromRitualCredits();
-    }, RITUAL_CREDITS_DURATION * 1000);
   }
 
   returnFromRitualCredits() {
@@ -2695,6 +2687,11 @@ class InteractionManager {
 
   bindKeys() {
     window.addEventListener("keydown", (event) => {
+      if (this.organism.ritualState?.creditsShown) {
+        event.preventDefault();
+        this.organism.returnFromRitualCredits();
+        return;
+      }
       if (event.target.matches("input")) return;
       const key = event.key.toLowerCase();
       if (event.code === "Space") {

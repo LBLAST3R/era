@@ -684,7 +684,7 @@ input[type="range"] {
 .ritual-overlay.is-credits .ritual-scroll {
   gap: 24px;
   text-align: center;
-  animation: ritualCreditsScroll 42s linear both;
+  animation: ritualCreditsScroll 78s linear both;
 }
 
 .ritual-overlay.is-credits .ritual-scroll p,
