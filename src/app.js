@@ -1967,11 +1967,11 @@ class Organism {
   showRitualIntro() {
     this.ritualState.overlayUntil = RITUAL_INTRO_DURATION;
     this.showRitualOverlay("intro", "BIONUM / RITUEL", "Un organisme sonore va commencer", [
-      "Bionum est une pièce vivante: un organisme lumineux qui compose sa propre musique au moment où vous le regardez.",
-      "Chaque cellule est une voix. Sa position ouvre l'espace stéréo, sa taille donne du poids au son, son énergie éclaire le timbre, et son âge rend la matière plus fragile.",
-      "Le Conductor écoute l'ensemble en silence. Il mesure la densité, la tension, les collisions et la respiration du système pour garder le chaos lisible, musical et sûr.",
-      "Le rituel traverse plusieurs états: apparition, croissance, rupture, renaissance, surcharge, puis disparition. Les cellules peuvent s'effacer d'un seul geste avant de laisser revenir une nouvelle génération.",
-      "À la fin, le générique reprend le relais. Il révèle les règles invisibles qui ont transformé ces mouvements biologiques en sons, en textures et en espace.",
+      "Bionum est une installation électroacoustique générative: un paysage vivant où la lumière, le mouvement et le son évoluent ensemble.",
+      "À l'écran, des cellules apparaissent, se déplacent, se rapprochent, se séparent et transforment peu à peu l'espace en organisme.",
+      "Chaque cellule possède sa couleur, sa vitesse, sa taille, son énergie et sa présence sonore. Leurs gestes créent des drones, des pulsations, des grains, des tensions et des moments de silence.",
+      "L'œuvre se regarde comme un microscope imaginaire et s'écoute comme une matière organique: fragile, lumineuse, instable, mais toujours musicale.",
+      "Installez-vous, laissez l'organisme respirer, et suivez l'histoire qui se forme à l'écran. Bon visionnage.",
     ], 0);
   }
 
