@@ -537,6 +537,220 @@ input[type="range"] {
   color: var(--green);
 }
 
+.ritual-overlay[hidden] {
+  display: none;
+}
+
+.ritual-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.ritual-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(167, 196, 132, 0.16), transparent 26vw),
+    linear-gradient(180deg, rgba(2, 3, 2, 0.88), rgba(2, 3, 2, 0.7) 42%, rgba(2, 3, 2, 0.92));
+  animation: ritualBreath 6s ease-in-out infinite;
+}
+
+.ritual-frame {
+  position: relative;
+  width: min(760px, calc(100vw - 42px));
+  height: min(620px, calc(100dvh - 54px));
+  padding: clamp(28px, 5vw, 56px);
+  border: 1px solid rgba(240, 239, 230, 0.18);
+  background:
+    linear-gradient(180deg, rgba(15, 18, 14, 0.86), rgba(4, 5, 4, 0.76)),
+    radial-gradient(circle at 50% 12%, rgba(167, 196, 132, 0.12), transparent 42%);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.62);
+  overflow: hidden;
+}
+
+.ritual-frame::before,
+.ritual-frame::after {
+  position: absolute;
+  right: 28px;
+  left: 28px;
+  z-index: 2;
+  height: 76px;
+  content: "";
+  pointer-events: none;
+}
+
+.ritual-frame::before {
+  top: 0;
+  background: linear-gradient(180deg, rgba(8, 10, 8, 0.96), transparent);
+}
+
+.ritual-frame::after {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(8, 10, 8, 0.96), transparent);
+}
+
+.ritual-kicker {
+  position: relative;
+  z-index: 3;
+  margin: 0 0 12px;
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+.ritual-frame h2 {
+  position: relative;
+  z-index: 3;
+  max-width: 680px;
+  margin: 0;
+  font-size: clamp(2.1rem, 7vw, 5.4rem);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.94;
+}
+
+.ritual-scroll-mask {
+  position: relative;
+  height: min(330px, 43dvh);
+  margin-top: clamp(28px, 5vw, 54px);
+  overflow: hidden;
+}
+
+.ritual-scroll {
+  display: grid;
+  gap: 16px;
+  color: rgba(240, 239, 230, 0.78);
+  font-size: clamp(1rem, 2.2vw, 1.38rem);
+  line-height: 1.58;
+  animation: ritualIntroScroll 17s linear both;
+}
+
+.ritual-scroll p,
+.ritual-scroll dl {
+  max-width: 650px;
+  margin: 0;
+}
+
+.ritual-scroll dl {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.34fr) 1fr;
+  gap: 10px 18px;
+  font-family: var(--mono);
+  font-size: clamp(0.74rem, 1.5vw, 0.94rem);
+  text-transform: uppercase;
+}
+
+.ritual-scroll dt {
+  color: var(--green);
+  letter-spacing: 0.14em;
+}
+
+.ritual-scroll dd {
+  margin: 0;
+  color: rgba(240, 239, 230, 0.72);
+}
+
+.ritual-overlay.is-chapter .ritual-frame {
+  height: min(440px, calc(100dvh - 54px));
+}
+
+.ritual-overlay.is-chapter .ritual-scroll {
+  animation: ritualChapterIn 5.4s ease both;
+}
+
+.ritual-overlay.is-credits .ritual-frame {
+  height: min(700px, calc(100dvh - 44px));
+}
+
+.ritual-overlay.is-credits .ritual-scroll {
+  gap: 22px;
+  text-align: center;
+  animation: ritualCreditsScroll 34s linear infinite;
+}
+
+.ritual-overlay.is-credits .ritual-scroll p,
+.ritual-overlay.is-credits .ritual-scroll dl {
+  max-width: none;
+}
+
+.ritual-progress {
+  position: absolute;
+  right: 34px;
+  bottom: 28px;
+  left: 34px;
+  z-index: 3;
+  height: 1px;
+  background: rgba(240, 239, 230, 0.14);
+}
+
+.ritual-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--green);
+  box-shadow: 0 0 18px rgba(167, 196, 132, 0.5);
+  transition: width 0.28s ease;
+}
+
+@keyframes ritualBreath {
+  0%,
+  100% {
+    opacity: 0.86;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.018);
+  }
+}
+
+@keyframes ritualIntroScroll {
+  from {
+    transform: translateY(24%);
+  }
+
+  to {
+    transform: translateY(-48%);
+  }
+}
+
+@keyframes ritualChapterIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  18%,
+  78% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes ritualCreditsScroll {
+  from {
+    transform: translateY(30%);
+  }
+
+  to {
+    transform: translateY(-86%);
+  }
+}
+
 .hide-ui .brand-panel,
 .hide-ui .left-rail,
 .hide-ui .right-rail,

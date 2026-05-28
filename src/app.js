@@ -120,6 +120,29 @@ const EVENT_LABELS = {
 };
 
 const RITUAL_DURATION = 300;
+const RITUAL_INTRO_DURATION = 18;
+const RITUAL_FADE_START = 285;
+
+const RITUAL_RESET_CUES = [
+  {
+    time: 68,
+    title: "Chapitre II - Coupure",
+    text: "Le premier organisme s'efface d'un seul geste. Une nouvelle souche apparait, plus nerveuse.",
+    seedCount: 3,
+  },
+  {
+    time: 146,
+    title: "Chapitre III - Mutation",
+    text: "La colonie precedente disparait. Les cellules reviennent avec des trajectoires plus tendues.",
+    seedCount: 4,
+  },
+  {
+    time: 222,
+    title: "Chapitre IV - Surcharge",
+    text: "Derniere rupture: l'organisme repart a zero avant de se remplir jusqu'au chaos.",
+    seedCount: 5,
+  },
+];
 
 const PHASES = [
   { id: "germination", label: "Bionum" },
@@ -205,7 +228,7 @@ const RITUAL_STAGES = [
   },
   {
     id: "ritual-total-chaos",
-    start: 0.86,
+    start: 0.78,
     label: "Rituel V - Chaos total",
     text: "Chaos total: l'organisme atteint sa densite maximale.",
     profile: {
@@ -219,6 +242,24 @@ const RITUAL_STAGES = [
       consonance: 0.28,
       reverb: 0.34,
       lowpass: 11800,
+    },
+  },
+  {
+    id: "ritual-dissolution",
+    start: 0.95,
+    label: "Rituel VI - Dissolution",
+    text: "Dissolution: les voix quittent progressivement le champ.",
+    profile: {
+      targetCells: 0,
+      targetEnergy: 0.04,
+      speed: 0.18,
+      chaos: 0.18,
+      division: 0,
+      death: 6.4,
+      collisions: 0.02,
+      consonance: 0.96,
+      reverb: 0.86,
+      lowpass: 2800,
     },
   },
 ];
@@ -252,6 +293,20 @@ function formatClock(seconds) {
   const minutes = Math.floor(total / 60).toString().padStart(2, "0");
   const secs = (total % 60).toString().padStart(2, "0");
   return `${minutes}:${secs}`;
+}
+
+function createRitualState() {
+  return {
+    stageId: null,
+    nextCueAt: 0,
+    resetsTriggered: [],
+    pendingSeedAt: 0,
+    pendingSeedCount: 0,
+    overlayUntil: 0,
+    overlayVariant: null,
+    finalFadeStarted: false,
+    creditsShown: false,
+  };
 }
 
 function downloadBlob(blob, filename) {
@@ -1545,10 +1600,7 @@ class Organism {
       dragging: false,
       radius: 170,
     };
-    this.ritualState = {
-      stageId: null,
-      nextCueAt: 0,
-    };
+    this.ritualState = createRitualState();
     this.quality = qualityProfile();
     this.reset(this.seed);
   }
@@ -1570,10 +1622,7 @@ class Organism {
     this.events = [];
     this.lastEventText = "Dernier son: respiration initiale";
     this.soloId = null;
-    this.ritualState = {
-      stageId: null,
-      nextCueAt: 0,
-    };
+    this.ritualState = createRitualState();
     this.baseFrequency = [41.2, 48.99, 55, 65.41, 73.42][this.rng.int(0, 4)];
     this.harmonicIndex = options.harmonicIndex ?? this.rng.int(0, HARMONIC_MODES.length - 1);
     this.conductor = new Conductor();
@@ -1592,6 +1641,10 @@ class Organism {
     if (ritualBirth) {
       this.autoEvolution = true;
       this.lastEventText = "Dernier son: RITUEL seed remise a zero";
+      document.body.classList.add("hide-ui");
+      this.showRitualIntro();
+    } else {
+      this.hideRitualOverlay();
     }
     this.audio.removeAllVoices();
     this.updateHarmonyUi();
@@ -1873,8 +1926,82 @@ class Organism {
     this.lastEventText = `Dernier son: ${event.label} ${ids}`;
   }
 
+  showRitualOverlay(variant, kicker, title, lines, progress = this.conductor.ritualProgress()) {
+    if (!this.ui.ritualOverlay) return;
+    this.ui.ritualOverlay.hidden = false;
+    this.ui.ritualOverlay.setAttribute("aria-hidden", "false");
+    this.ui.ritualOverlay.className = `ritual-overlay is-${variant}`;
+    this.ui.ritualKicker.textContent = kicker;
+    this.ui.ritualTitle.textContent = title;
+    const children = lines.map((line) => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = line;
+      return paragraph;
+    });
+    this.ui.ritualScroll.replaceChildren(...children);
+    this.ui.ritualScroll.style.animation = "none";
+    void this.ui.ritualScroll.offsetHeight;
+    this.ui.ritualScroll.style.animation = "";
+    this.ritualState.overlayVariant = variant;
+    this.updateRitualOverlayProgress(progress);
+  }
+
+  hideRitualOverlay() {
+    if (!this.ui.ritualOverlay) return;
+    this.ui.ritualOverlay.hidden = true;
+    this.ui.ritualOverlay.setAttribute("aria-hidden", "true");
+    this.ui.ritualOverlay.className = "ritual-overlay";
+    this.ritualState.overlayVariant = null;
+  }
+
+  updateRitualOverlayProgress(progress = this.conductor.ritualProgress()) {
+    if (!this.ui.ritualProgress) return;
+    this.ui.ritualProgress.style.width = `${Math.round(clamp(progress, 0, 1) * 100)}%`;
+  }
+
+  showRitualIntro() {
+    this.ritualState.overlayUntil = RITUAL_INTRO_DURATION;
+    this.showRitualOverlay("intro", "BIONUM / RITUEL / 05:00", "Un organisme sonore va commencer", [
+      "Pendant cinq minutes, Bionum se comporte comme une piece vivante.",
+      "Chaque cellule que vous verrez est aussi une voix sonore: sa position, son energie, sa taille et son age modifient le timbre, la hauteur, le filtre et l'espace stereo.",
+      "Le Conductor observe la densite, la dissonance, les collisions et le niveau d'energie. Il garde le chaos musical au lieu de le laisser devenir un bruit brut.",
+      "Trois fois, l'organisme sera coupe net: toutes les cellules disparaitront, puis une nouvelle generation reapparaitra pour ouvrir un autre chapitre.",
+      "Vers 04:45, les voix commenceront a s'eteindre. A 05:00, le generique expliquera ce que vous venez d'ecouter et de regarder.",
+    ], 0);
+  }
+
+  showRitualChapter(title, text) {
+    this.ritualState.overlayUntil = this.conductor.ritualTime + 5.4;
+    this.showRitualOverlay("chapter", formatClock(this.conductor.ritualTime), title, [
+      text,
+      "La partition repart depuis une petite population: la seed reste la meme, mais le recit change de forme.",
+    ]);
+  }
+
+  showRitualCredits() {
+    this.showRitualOverlay("credits", "BIONUM / GENERIQUE", "Merci d'avoir ecoute et regarde", [
+      "Cette piece a ete generee en direct par un organisme de cellules sonores.",
+      "Chaque cellule possede une position, une vitesse, une taille, une energie, un age, une famille sonore et une memoire d'interactions.",
+      "Position X: panoramique stereo et registre.",
+      "Position Y: filtrage et profondeur.",
+      "Taille: volume, presence et richesse harmonique.",
+      "Energie: brillance, densite et instabilite.",
+      "Collision: micro-percussion filtree.",
+      "Division: nouvelle voix derivee de la cellule mere.",
+      "Fusion: melange de timbres et glissement harmonique.",
+      "Mort: disparition douce et resonance finale.",
+      "Le Conductor agit comme un chef invisible: il limite les volumes, module les filtres, ajuste la reverberation et controle la densite pour proteger l'ecoute.",
+      "Le mode Rituel a utilise la seed active comme partition reproductible, puis a traverse plusieurs chapitres: apparition, effacement, renaissance, surcharge et dissolution.",
+      "Merci d'avoir observe ce vivant numerique.",
+      "Bionum - organisme electroacoustique generatif.",
+    ], 1);
+  }
+
   autoManagePopulation(dt) {
     if (!this.autoEvolution) return;
+    if (this.mode === "ritual" && (this.ritualState.creditsShown || this.ritualState.pendingSeedAt)) {
+      return;
+    }
     const target = Math.min(this.conductor.controls.targetCells, this.quality.maxCells);
     const shortage = target - this.cells.length;
     const birthRate = this.mode === "ritual" ? 0.2 : 0.1;
@@ -1898,7 +2025,42 @@ class Organism {
   }
 
   updateRitualNarrative(dt) {
+    const ritualTime = this.conductor.ritualTime;
     const stage = this.conductor.currentRitualStage();
+    this.updateRitualOverlayProgress();
+
+    if (this.ritualState.creditsShown) return;
+
+    if (ritualTime >= RITUAL_DURATION) {
+      this.finishRitualCredits();
+      return;
+    }
+
+    if (this.ritualState.overlayVariant === "intro" && ritualTime >= RITUAL_INTRO_DURATION) {
+      this.hideRitualOverlay();
+    }
+    if (this.ritualState.overlayVariant === "chapter" && this.ritualState.overlayUntil && ritualTime >= this.ritualState.overlayUntil) {
+      this.hideRitualOverlay();
+    }
+
+    if (this.ritualState.pendingSeedAt && ritualTime >= this.ritualState.pendingSeedAt) {
+      this.spawnRitualSeedPack(stage, this.ritualState.pendingSeedCount || 3);
+      this.ritualState.pendingSeedAt = 0;
+      this.ritualState.pendingSeedCount = 0;
+    }
+
+    const resetCue = RITUAL_RESET_CUES.find((cue) => ritualTime >= cue.time && !this.ritualState.resetsTriggered.includes(cue.time));
+    if (resetCue) {
+      this.triggerRitualReset(resetCue, stage);
+      return;
+    }
+
+    if (ritualTime >= RITUAL_FADE_START && !this.ritualState.finalFadeStarted) {
+      this.ritualState.finalFadeStarted = true;
+      this.showRitualChapter("Dernier mouvement - Dissolution", "A partir de 04:45, les cellules quittent le champ une par une. Le vivant sonore retourne au silence.");
+      this.lastEventText = "Dernier son: DISSOLUTION";
+    }
+
     if (stage.id !== this.ritualState.stageId) {
       this.ritualState.stageId = stage.id;
       this.ritualState.nextCueAt = this.elapsed + 0.35;
@@ -1907,6 +2069,57 @@ class Organism {
     this.applyRitualMotion(stage, dt);
     if (this.elapsed < this.ritualState.nextCueAt) return;
     this.performRitualCue(stage);
+  }
+
+  triggerRitualReset(cue, stage) {
+    this.cells = [];
+    this.spatialGrid.clear();
+    this.audio.removeAllVoices();
+    this.events = [];
+    this.recentCollisions = 0;
+    this.energyField = 0.12 + stage.profile.chaos * 0.18;
+    this.ritualState.resetsTriggered.push(cue.time);
+    this.ritualState.pendingSeedAt = this.conductor.ritualTime + 1.25;
+    this.ritualState.pendingSeedCount = cue.seedCount;
+    this.ritualState.nextCueAt = this.elapsed + 3.2;
+    this.lastEventText = `Dernier son: ${cue.title.toUpperCase()}`;
+    this.showRitualChapter(cue.title, cue.text);
+  }
+
+  spawnRitualSeedPack(stage, count) {
+    const progress = this.conductor.ritualProgress();
+    const familiesByStage = {
+      "ritual-awakening": ["drone", "spectral", "pulsing"],
+      "ritual-proliferation": ["drone", "granular", "pulsing"],
+      "ritual-friction": ["granular", "pulsing", "spectral"],
+      "ritual-surge": ["granular", "unstable", "pulsing"],
+      "ritual-total-chaos": ["unstable", "granular", "pulsing"],
+      "ritual-dissolution": ["drone", "spectral"],
+    };
+    const families = familiesByStage[stage.id] || familiesByStage["ritual-proliferation"];
+    const amount = Math.min(count, this.quality.maxCells - this.cells.length);
+    for (let i = 0; i < amount; i += 1) {
+      this.addRitualCell(stage, {
+        family: this.rng.choice(families),
+        energy: this.rng.range(0.14 + progress * 0.22, 0.32 + progress * 0.48),
+        size: this.rng.range(stage.id === "ritual-total-chaos" ? 5 : 9, stage.id === "ritual-total-chaos" ? 13 : 24),
+        alpha: this.rng.range(0, 0.16),
+      });
+    }
+    this.lastEventText = `Dernier son: nouvelle souche x${amount}`;
+  }
+
+  finishRitualCredits() {
+    this.ritualState.creditsShown = true;
+    this.cells = [];
+    this.spatialGrid.clear();
+    this.audio.removeAllVoices();
+    this.events = [];
+    this.recentCollisions = 0;
+    this.energyField = 0;
+    this.lastEventText = "Dernier son: MERCI";
+    document.body.classList.add("hide-ui");
+    this.showRitualCredits();
   }
 
   enterRitualStage(stage) {
@@ -1941,6 +2154,13 @@ class Organism {
         cell.energy = clamp(cell.energy + this.rng.range(0.12, 0.28), 0, 1.08);
         cell.modulation = clamp(cell.modulation + this.rng.range(0.18, 0.34), 0, 1);
       });
+    } else if (stage.id === "ritual-dissolution") {
+      this.energyField = -0.25;
+      this.cells.forEach((cell) => {
+        cell.modulation *= 0.5;
+        cell.vx *= 0.62;
+        cell.vy *= 0.62;
+      });
     }
   }
 
@@ -1967,6 +2187,13 @@ class Organism {
         cell.energy = lerp(cell.energy, stage.profile.targetEnergy, dt * 0.07);
         cell.modulation = clamp(cell.modulation + dt * 0.12 * chaosForce, 0, 1);
       });
+    } else if (stage.id === "ritual-dissolution") {
+      this.cells.forEach((cell) => {
+        cell.energy = clamp(cell.energy - dt * 0.085, 0, 1.08);
+        cell.vx *= 0.976;
+        cell.vy *= 0.976;
+        if (cell.energy < 0.08 && this.rng.chance(dt * 1.4)) cell.die();
+      });
     } else if (stage.id === "ritual-proliferation") {
       this.cells.forEach((cell) => {
         const dx = cell.x - cx;
@@ -1986,6 +2213,15 @@ class Organism {
 
   performRitualCue(stage) {
     const target = Math.min(stage.profile.targetCells, this.quality.maxCells);
+    if (stage.id === "ritual-dissolution") {
+      const living = this.cells.filter((cell) => cell.state !== "dying");
+      living
+        .sort((a, b) => b.energy + b.age * 0.01 - (a.energy + a.age * 0.01))
+        .slice(0, Math.max(1, Math.ceil(living.length * 0.22)))
+        .forEach((cell) => cell.die());
+      this.ritualState.nextCueAt = this.elapsed + this.rng.range(1.2, 2.2);
+      return;
+    }
     if (stage.id === "ritual-awakening") {
       if (this.cells.length < target) {
         this.addRitualCell(stage, { family: this.rng.choice(["drone", "spectral", "pulsing"]), energy: this.rng.range(0.1, 0.34), size: this.rng.range(11, 25) });
@@ -2224,6 +2460,8 @@ class Organism {
       this.reset(seed, { mode: "ritual", initialCount: 4 });
       return;
     }
+    this.hideRitualOverlay();
+    document.body.classList.remove("hide-ui");
     this.mode = mode;
     this.conductor.setMode(mode);
     this.updateModeUi();
@@ -2301,6 +2539,7 @@ class Organism {
     this.quality = qualityProfile();
     this.particles = this.createParticles();
     this.nextCellId = 1;
+    this.ritualState = createRitualState();
     this.mode = data.mode || "calm";
     this.harmonicIndex = data.harmonicIndex ?? 2;
     this.baseFrequency = data.baseFrequency || 55;
@@ -2308,6 +2547,13 @@ class Organism {
     this.elapsed = data.elapsed || 0;
     this.conductor = new Conductor();
     this.conductor.setMode(this.mode);
+    if (this.mode === "ritual") {
+      document.body.classList.add("hide-ui");
+      this.showRitualIntro();
+    } else {
+      this.hideRitualOverlay();
+      document.body.classList.remove("hide-ui");
+    }
     (data.cells || []).forEach((cellData) => {
       const cell = new Cell(this, cellData);
       const numericId = Number(String(cell.id).replace("cell-", ""));
@@ -2592,6 +2838,11 @@ function collectUi() {
     loadState: document.getElementById("loadState"),
     snapshotPng: document.getElementById("snapshotPng"),
     stateFile: document.getElementById("stateFile"),
+    ritualOverlay: document.getElementById("ritualOverlay"),
+    ritualKicker: document.getElementById("ritualKicker"),
+    ritualTitle: document.getElementById("ritualTitle"),
+    ritualScroll: document.getElementById("ritualScroll"),
+    ritualProgress: document.getElementById("ritualProgress"),
     masterVolume: document.getElementById("masterVolume"),
     densityValue: document.getElementById("densityValue"),
     energyValue: document.getElementById("energyValue"),

@@ -8,7 +8,7 @@ Chaque cellule possede aussi une signature sonore et visuelle reconnaissable. Le
 
 La version actuelle charge par defaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour eviter de saturer la machine.
 
-Le mode `Rituel` redemarre l'organisme depuis la seed active et lance une montee de 5 minutes vers le chaos total. La densite, l'energie, les collisions, les divisions et l'instabilite augmentent progressivement jusqu'a remplir le milieu avec le maximum de cellules permis par le profil performance.
+Le mode `Rituel` redemarre l'organisme depuis la seed active et lance une piece narrative de 5 minutes. Il masque automatiquement l'interface comme la touche `H`, affiche une introduction defilante, coupe tout l'organisme trois fois pour ouvrir de nouveaux chapitres, puis laisse les cellules disparaitre progressivement vers 04:45. A 05:00, un generique anime remercie le public et explique comment les cellules, le Conductor et les evenements sonores ont construit la piece.
 
 ## Lancer
 
@@ -28,7 +28,7 @@ Le son demarre uniquement apres un clic sur `Start Audio`, conformement aux regl
 - `Clic droit` : faire mourir une cellule progressivement.
 - `Molette` : modifier l'energie globale.
 - `C`, `S`, `X` : modes calme, stable, chaos.
-- `Rituel` : redemarre la seed active et lance une montee chaotique de 5 minutes.
+- `Rituel` : redemarre la seed active, masque l'interface, affiche l'introduction, traverse les chapitres narratifs, puis termine par un generique.
 - `R` : renaissance depuis la seed.
 - `M` : mutation.
 - `A` : activer/desactiver l'auto-evolution.
