@@ -221,16 +221,14 @@ button {
   outline: none;
 }
 
-.mode-card strong,
-.harmony-switch strong {
+.mode-card strong {
   display: block;
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 500;
 }
 
-.mode-card small,
-.harmony-switch small {
+.mode-card small {
   display: block;
   margin-top: 1px;
   color: var(--muted);
@@ -252,58 +250,6 @@ button {
 .mode-orb.stable { color: var(--green); }
 .mode-orb.chaos { color: var(--amber); }
 .mode-orb.ritual { color: var(--red); }
-
-.harmony-switch {
-  display: grid;
-  grid-template-columns: 28px 34px 1fr 28px;
-  align-items: center;
-  gap: 8px;
-}
-
-.round-button {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 1px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.round-button:hover {
-  border-color: var(--line-strong);
-}
-
-.harmony-orbit {
-  position: relative;
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(167, 196, 132, 0.32);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(167, 196, 132, 0.25), transparent 30%);
-}
-
-.harmony-orbit span,
-.harmony-orbit i {
-  position: absolute;
-  border-radius: 50%;
-}
-
-.harmony-orbit span {
-  inset: 9px;
-  border: 1px solid rgba(240, 239, 230, 0.16);
-}
-
-.harmony-orbit i {
-  top: 5px;
-  left: 15px;
-  width: 4px;
-  height: 4px;
-  background: var(--green);
-}
 
 .seed-row {
   display: grid;
@@ -834,10 +780,6 @@ input[type="range"] {
 
   .brand-panel {
     width: auto;
-  }
-
-  .harmony-switch {
-    grid-template-columns: 28px 34px 1fr 28px;
   }
 
   .hints-panel dl,

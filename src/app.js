@@ -1656,7 +1656,6 @@ class Organism {
       document.body.classList.remove("hide-ui");
     }
     this.audio.removeAllVoices();
-    this.updateHarmonyUi();
     this.updateModeUi();
   }
 
@@ -2499,14 +2498,6 @@ class Organism {
     }
   }
 
-  setHarmony(index) {
-    this.harmonicIndex = (index + HARMONIC_MODES.length) % HARMONIC_MODES.length;
-    this.cells.forEach((cell) => {
-      cell.targetFrequency = this.frequencyForCell(cell);
-    });
-    this.updateHarmonyUi();
-  }
-
   findCellAt(x, y, radiusBoost = 8) {
     return [...this.cells]
       .filter((cell) => cell.state !== "dead")
@@ -2576,7 +2567,6 @@ class Organism {
     });
     this.audio.removeAllVoices();
     this.updateModeUi();
-    this.updateHarmonyUi();
   }
 
   resize() {
@@ -2601,11 +2591,6 @@ class Organism {
     });
   }
 
-  updateHarmonyUi() {
-    const mode = HARMONIC_MODES[this.harmonicIndex];
-    this.ui.harmonyName.textContent = mode.name;
-    this.ui.harmonyMood.textContent = mode.mood;
-  }
 }
 
 class InteractionManager {
@@ -2641,8 +2626,6 @@ class InteractionManager {
     document.querySelectorAll(".mode-card").forEach((button) => {
       button.addEventListener("click", () => this.organism.setMode(button.dataset.mode));
     });
-    this.ui.prevHarmony.addEventListener("click", () => this.organism.setHarmony(this.organism.harmonicIndex - 1));
-    this.ui.nextHarmony.addEventListener("click", () => this.organism.setHarmony(this.organism.harmonicIndex + 1));
     this.ui.applySeed.addEventListener("click", () => this.organism.reset(this.ui.seedInput.value.trim() || "era"));
     this.ui.randomSeed.addEventListener("click", () => {
       const fragments = ["marais", "plasma", "lichen", "corail", "brume", "ambre", "abyssal"];
@@ -2838,10 +2821,6 @@ class InteractionManager {
 function collectUi() {
   return {
     phaseLabel: document.getElementById("phaseLabel"),
-    harmonyName: document.getElementById("harmonyName"),
-    harmonyMood: document.getElementById("harmonyMood"),
-    prevHarmony: document.getElementById("prevHarmony"),
-    nextHarmony: document.getElementById("nextHarmony"),
     seedInput: document.getElementById("seedInput"),
     applySeed: document.getElementById("applySeed"),
     randomSeed: document.getElementById("randomSeed"),
