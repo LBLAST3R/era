@@ -635,7 +635,7 @@ input[type="range"] {
   font-weight: 380;
   letter-spacing: -0.012em;
   line-height: 1.64;
-  animation: ritualIntroScroll 46s linear both;
+  animation: ritualIntroScroll 54s linear both;
 }
 
 .ritual-scroll p,
@@ -684,7 +684,7 @@ input[type="range"] {
 .ritual-overlay.is-credits .ritual-scroll {
   gap: 24px;
   text-align: center;
-  animation: ritualCreditsScroll 78s linear both;
+  animation: ritualCreditsScroll 58s linear both;
 }
 
 .ritual-overlay.is-credits .ritual-scroll p,

@@ -119,25 +119,26 @@ const EVENT_LABELS = {
   death: "FADE",
 };
 
-const RITUAL_DURATION = 300;
-const RITUAL_INTRO_DURATION = 52;
-const RITUAL_FADE_START = 285;
+const RITUAL_DURATION = 240;
+const RITUAL_INTRO_DURATION = 60;
+const RITUAL_CREDITS_DURATION = 60;
+const RITUAL_FADE_START = 228;
 
 const RITUAL_RESET_CUES = [
   {
-    time: 68,
+    time: 92,
     title: "Chapitre II - Coupure",
     text: "Le premier organisme s'efface d'un seul geste. Une nouvelle souche apparaît, plus nerveuse.",
     seedCount: 3,
   },
   {
-    time: 146,
+    time: 150,
     title: "Chapitre III - Mutation",
     text: "La colonie précédente disparaît. Les cellules reviennent avec des trajectoires plus tendues.",
     seedCount: 4,
   },
   {
-    time: 222,
+    time: 205,
     title: "Chapitre IV - Surcharge",
     text: "Dernière rupture: l'organisme repart à zéro avant de se remplir jusqu'au chaos.",
     seedCount: 5,
@@ -174,7 +175,7 @@ const RITUAL_STAGES = [
   },
   {
     id: "ritual-proliferation",
-    start: 0.18,
+    start: 0.28,
     label: "Rituel II - Prolifération",
     text: "Prolifération: les voix se multiplient et l'espace se remplit.",
     profile: {
@@ -192,7 +193,7 @@ const RITUAL_STAGES = [
   },
   {
     id: "ritual-friction",
-    start: 0.4,
+    start: 0.45,
     label: "Rituel III - Friction",
     text: "Friction: les trajectoires se croisent, la tension harmonique monte.",
     profile: {
@@ -210,7 +211,7 @@ const RITUAL_STAGES = [
   },
   {
     id: "ritual-surge",
-    start: 0.64,
+    start: 0.63,
     label: "Rituel IV - Débordement",
     text: "Débordement: divisions rapides, collisions et glitches contrôlés.",
     profile: {
@@ -306,6 +307,7 @@ function createRitualState() {
     overlayVariant: null,
     finalFadeStarted: false,
     creditsShown: false,
+    creditsReturnTimer: 0,
   };
 }
 
@@ -568,7 +570,7 @@ class AudioEngine {
     this.enabled = false;
     this.voiceMap = new Map();
     this.recorder = new Recorder();
-    this.masterVolume = 0.72;
+    this.masterVolume = 0.62;
     this.outputNode = null;
     this.mediaDestination = null;
     this.noiseBuffer = null;
@@ -632,18 +634,21 @@ class AudioEngine {
     this.compressor.release.value = 0.22;
 
     this.saturator = ctx.createWaveShaper();
-    this.saturator.curve = this.createSaturationCurve(60);
+    this.saturator.curve = this.createSaturationCurve(28);
     this.saturator.oversample = "2x";
 
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = 0;
 
     this.limiter = ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -3.2;
+    this.limiter.threshold.value = -8;
     this.limiter.knee.value = 0;
-    this.limiter.ratio.value = 18;
-    this.limiter.attack.value = 0.002;
-    this.limiter.release.value = 0.08;
+    this.limiter.ratio.value = 30;
+    this.limiter.attack.value = 0.001;
+    this.limiter.release.value = 0.12;
+
+    this.outputGain = ctx.createGain();
+    this.outputGain.gain.value = 0.86;
 
     this.bus.connect(this.dryGain);
     this.dryGain.connect(this.highpass);
@@ -664,10 +669,11 @@ class AudioEngine {
     this.compressor.connect(this.saturator);
     this.saturator.connect(this.masterGain);
     this.masterGain.connect(this.limiter);
-    this.limiter.connect(ctx.destination);
+    this.limiter.connect(this.outputGain);
+    this.outputGain.connect(ctx.destination);
     this.mediaDestination = ctx.createMediaStreamDestination();
-    this.limiter.connect(this.mediaDestination);
-    this.outputNode = this.limiter;
+    this.outputGain.connect(this.mediaDestination);
+    this.outputNode = this.outputGain;
     this.noiseBuffer = this.createNoiseBuffer(2);
   }
 
@@ -1605,6 +1611,9 @@ class Organism {
   }
 
   reset(seed = this.seed, options = {}) {
+    if (this.ritualState?.creditsReturnTimer) {
+      window.clearTimeout(this.ritualState.creditsReturnTimer);
+    }
     this.seed = seed;
     this.rng = new SeededRandom(seed);
     this.quality = qualityProfile();
@@ -1979,7 +1988,7 @@ class Organism {
       "Le Conductor a agi comme un chef invisible. Il a limité les volumes, filtré les excès, guidé la réverbération et retenu le chaos pour que l'organisme reste musical.",
       "Chaque seed devient ainsi une petite partition vivante: le même point de départ peut être rejoué, observé, comparé, puis laissé dériver.",
       "Merci d'avoir prêté attention à cette matière lumineuse, fragile et sonore.",
-      "Appuyez sur Échap ou sur n'importe quelle touche pour revenir au mode stable.",
+      "Appuyez sur Échap ou sur n'importe quelle touche pour revenir au mode stable, ou laissez le générique se terminer.",
       "Bionum - organisme électroacoustique génératif.",
     ], 1);
   }
@@ -2102,10 +2111,18 @@ class Organism {
     this.lastEventText = "Dernier son: MERCI";
     document.body.classList.add("hide-ui");
     this.showRitualCredits();
+    if (this.ritualState.creditsReturnTimer) window.clearTimeout(this.ritualState.creditsReturnTimer);
+    this.ritualState.creditsReturnTimer = window.setTimeout(() => {
+      this.returnFromRitualCredits();
+    }, RITUAL_CREDITS_DURATION * 1000);
   }
 
   returnFromRitualCredits() {
     if (!this.ritualState.creditsShown) return;
+    if (this.ritualState.creditsReturnTimer) {
+      window.clearTimeout(this.ritualState.creditsReturnTimer);
+      this.ritualState.creditsReturnTimer = 0;
+    }
     const harmonicIndex = this.harmonicIndex;
     this.reset(this.seed, {
       mode: "stable",

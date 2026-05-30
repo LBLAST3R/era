@@ -8,7 +8,7 @@ Chaque cellule possède aussi une signature sonore et visuelle reconnaissable. L
 
 La version actuelle charge par défaut un profil `Performance max` : moins de cellules, moins de particules, moins d'oscillateurs et un rendu canvas volontairement plus sobre pour éviter de saturer la machine.
 
-Le mode `Rituel` redémarre l'organisme depuis la seed active et lance une pièce narrative complète. Il masque automatiquement l'interface comme la touche `H`, affiche une introduction défilante, coupe parfois tout l'organisme pour laisser apparaître de nouvelles générations, puis termine par un générique animé qui explique comment les cellules, le Conductor et les événements sonores ont construit la pièce.
+Le mode `Rituel` redémarre l'organisme depuis la seed active et lance une pièce narrative complète d'environ cinq minutes, introduction et générique inclus. Il masque automatiquement l'interface comme la touche `H`, affiche une introduction défilante, fait évoluer l'organisme pendant environ trois minutes, puis termine par un générique animé. La chaîne audio inclut un limiteur final renforcé pour éviter les pics et la saturation.
 
 ## Lancer
 
